@@ -658,15 +658,14 @@ function generateFilePath(solution, config) {
 function generateFileContent(solution, config) {
   let content = '';
   
-  if (config.includeDescription) {
-    content += `/*\n * ${solution.title}\n * Difficulty: ${solution.difficulty}\n`;
-    if (solution.tag) {
-      content += ` * Topic: ${solution.tag}\n`;
-    }
-    content += ` * Runtime: ${solution.runtime || 'N/A'}\n`;
-    content += ` * Memory: ${solution.memory || 'N/A'}\n`;
-    content += ` */\n\n`;
+  // Always include basic description
+  content += `/*\n * ${solution.title}\n * Difficulty: ${solution.difficulty}\n`;
+  if (solution.tag && solution.tag !== 'Uncategorized') {
+    content += ` * Topic: ${solution.tag}\n`;
   }
+  content += ` * Runtime: ${solution.runtime || 'N/A'}\n`;
+  content += ` * Memory: ${solution.memory || 'N/A'}\n`;
+  content += ` */\n\n`;
   
   content += solution.code;
   
@@ -702,7 +701,7 @@ async function upsertFile({ token, owner, repo, branch, path, content, message }
   try {
     const getResponse = await fetch(url, {
       headers: {
-        'Authorization': `token ${token}`,
+        'Authorization': `Bearer ${token}`,
         'Accept': 'application/vnd.github.v3+json'
       }
     });
@@ -729,7 +728,7 @@ async function upsertFile({ token, owner, repo, branch, path, content, message }
   const response = await fetch(url, {
     method: 'PUT',
     headers: {
-      'Authorization': `token ${token}`,
+      'Authorization': `Bearer ${token}`,
       'Accept': 'application/vnd.github.v3+json',
       'Content-Type': 'application/json'
     },
