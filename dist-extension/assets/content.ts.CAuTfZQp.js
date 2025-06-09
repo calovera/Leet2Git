@@ -1,6 +1,4 @@
-// Inject script into main world to intercept GraphQL
-const script = document.createElement('script');
-script.textContent = `
+const e=document.createElement("script");e.textContent=`
 console.log("Leet2Git injected script loaded");
 
 // Override fetch in main world
@@ -51,21 +49,4 @@ window.fetch = function(input, init) {
 };
 
 console.log('[Leet2Git] Main world fetch override installed');
-`;
-
-document.documentElement.appendChild(script);
-script.remove();
-
-// Listen for the custom event from the injected script
-window.addEventListener('leetcode-question-data', (event) => {
-  console.log('[Leet2Git] Received question data from main world:', event.detail);
-  
-  chrome.runtime.sendMessage({
-    type: 'graphql_question_data',
-    data: event.detail
-  }, (response) => {
-    console.log('[Leet2Git] Sent to background script, response:', response);
-  });
-});
-
-console.log('[Leet2Git] Content script loaded and event listener set up');
+`;document.documentElement.appendChild(e);e.remove();window.addEventListener("leetcode-question-data",t=>{console.log("[Leet2Git] Received question data from main world:",t.detail),chrome.runtime.sendMessage({type:"graphql_question_data",data:t.detail},n=>{console.log("[Leet2Git] Sent to background script, response:",n)})});console.log("[Leet2Git] Content script loaded and event listener set up");
