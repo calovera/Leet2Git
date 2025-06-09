@@ -4,6 +4,34 @@ console.log("Leet2Git background script loaded");
 let lastNetworkCapture = 0;
 let lastDOMCapture = 0;
 
+// Question metadata cache
+const questionCache = new Map();
+
+// Helper functions for question metadata
+function parseQuestionMeta(res) {
+  try {
+    const q = res?.data?.question;
+    if (!q?.titleSlug) return null;
+    return {
+      slug: q.titleSlug,
+      title: q.title ?? q.titleSlug.replace(/-/g, " "),
+      difficulty: q.difficulty ?? "Easy",
+      tag: (Array.isArray(q.topicTags) && q.topicTags[0]?.name) || "Uncategorized"
+    };
+  } catch {
+    return null;
+  }
+}
+
+function cacheQuestionMeta(meta) {
+  questionCache.set(meta.slug, meta);
+  console.info(`[Leet2Git] Question meta cached: ${meta.slug}`);
+}
+
+function getQuestionMeta(slug) {
+  return questionCache.get(slug) || null;
+}
+
 // Initialize extension
 chrome.runtime.onInstalled.addListener(() => {
   console.log("Leet2Git extension installed");
@@ -12,6 +40,31 @@ chrome.runtime.onInstalled.addListener(() => {
 
 chrome.runtime.onStartup.addListener(() => {
   updateBadge();
+});
+
+// GraphQL listener for question metadata
+chrome.webRequest.onCompleted.addListener(async (details) => {
+  if (details.method !== "POST" || !details.url.startsWith("https://leetcode.com/graphql")) return;
+  if (details.statusCode !== 200) return;
+
+  try {
+    const response = await fetch(details.url, {
+      credentials: 'include',
+      headers: { 'Accept': 'application/json' }
+    });
+    
+    if (!response.ok) return;
+    
+    const data = await response.json();
+    const meta = parseQuestionMeta(data);
+    if (meta) {
+      cacheQuestionMeta(meta);
+    }
+  } catch (error) {
+    console.error(`[Leet2Git] GraphQL parsing error:`, error);
+  }
+}, {
+  urls: ["https://leetcode.com/graphql*"]
 });
 
 // Primary capture method: Intercept LeetCode submission check calls
@@ -69,7 +122,7 @@ chrome.webRequest.onCompleted.addListener(async (details) => {
     // Get the submitted code from submit request (we need to store it temporarily)
     const storedCode = await getStoredSubmissionCode(submissionId);
     
-    // Build solution payload
+    // Build initial solution payload
     const solutionPayload = {
       submissionId: submissionId,
       slug: toPascalCase(problemSlug),
@@ -83,6 +136,15 @@ chrome.webRequest.onCompleted.addListener(async (details) => {
       capturedAt: new Date().toISOString(),
       timestamp: Date.now()
     };
+
+    // Replace fields with cached metadata if available
+    const meta = getQuestionMeta(problemSlug);
+    if (meta) {
+      solutionPayload.title = meta.title;
+      solutionPayload.difficulty = meta.difficulty;
+      solutionPayload.tag = meta.tag;
+      console.info(`[Leet2Git] Enhanced with cached metadata: ${meta.title}`);
+    }
     
     console.info(`[Leet2Git] Network capture successful:`, solutionPayload);
     

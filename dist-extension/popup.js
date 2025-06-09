@@ -196,12 +196,28 @@
 
         <div style="max-height: 280px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
           ${pending.length > 0 ? 
-            pending.map(item => `
-              <div class="solution-item">
-                <div class="solution-title">${item.title}</div>
-                <div class="solution-meta">
-                  <span class="meta-tag language-tag">${item.language}</span>
-                  <span class="meta-tag difficulty-tag ${item.difficulty.toLowerCase()}">${item.difficulty}</span>
+            pending.map((item, index) => `
+              <div class="solution-item" data-index="${index}">
+                <div class="solution-header" onclick="toggleCodePreview(${index})" style="cursor: pointer;">
+                  <div class="solution-title">${item.title}</div>
+                  <div class="solution-meta">
+                    <span class="meta-tag language-tag">${item.lang || item.language}</span>
+                    <span class="meta-tag difficulty-tag ${(item.difficulty || 'medium').toLowerCase()}">${item.difficulty || 'Medium'}</span>
+                    ${item.tag ? `<span class="meta-tag tag-badge">${item.tag}</span>` : ''}
+                    <span class="expand-icon" id="expandIcon${index}">▼</span>
+                  </div>
+                </div>
+                <div class="solution-info" style="font-size: 12px; color: #64748b; margin-top: 4px;">
+                  <span>${formatTimeAgo(item.timestamp)}</span>
+                  ${item.runtime ? `<span> • ${item.runtime}</span>` : ''}
+                  ${item.memory ? `<span> • ${item.memory}</span>` : ''}
+                </div>
+                <div class="code-preview" id="codePreview${index}" style="display: none; margin-top: 12px;">
+                  <div class="code-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span style="font-size: 12px; font-weight: 500; color: #64748b;">Code Preview</span>
+                    <button onclick="copyCode(${index})" class="copy-button" style="font-size: 11px; padding: 4px 8px; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 4px; cursor: pointer;">Copy</button>
+                  </div>
+                  <pre class="code-content" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; font-size: 11px; font-family: 'Monaco', 'Consolas', monospace; overflow-x: auto; max-height: 200px; overflow-y: auto;"><code>${escapeHtml(item.code || '// Code not available')}</code></pre>
                 </div>
               </div>
             `).join('') :
@@ -269,4 +285,45 @@
     const diffInDays = Math.floor(diffInHours / 24);
     return `${diffInDays}d ago`;
   }
+
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  // Global functions for code preview
+  window.toggleCodePreview = function(index) {
+    const preview = document.getElementById(`codePreview${index}`);
+    const icon = document.getElementById(`expandIcon${index}`);
+    
+    if (preview.style.display === 'none') {
+      preview.style.display = 'block';
+      icon.textContent = '▲';
+    } else {
+      preview.style.display = 'none';
+      icon.textContent = '▼';
+    }
+  };
+
+  window.copyCode = function(index) {
+    if (!homeData?.pending?.[index]?.code) return;
+    
+    const code = homeData.pending[index].code;
+    navigator.clipboard.writeText(code).then(() => {
+      const button = document.querySelector(`[onclick="copyCode(${index})"]`);
+      const originalText = button.textContent;
+      button.textContent = 'Copied!';
+      button.style.background = '#dcfce7';
+      button.style.color = '#166534';
+      
+      setTimeout(() => {
+        button.textContent = originalText;
+        button.style.background = '#f1f5f9';
+        button.style.color = 'inherit';
+      }, 1500);
+    }).catch(err => {
+      console.error('Failed to copy code:', err);
+    });
+  };
 })();
