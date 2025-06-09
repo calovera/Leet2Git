@@ -268,20 +268,40 @@ async function updateBadge() {
   }
 }
 
-// Update statistics
+// Update statistics - only call for actual accepted submissions
 async function updateStats(solution) {
   try {
+    if (!solution.submissionId || !solution.title) {
+      console.warn(`[Leet2Git] Skipping stats update for incomplete solution`);
+      return;
+    }
+
     const { stats = { streak: 0, counts: { easy: 0, medium: 0, hard: 0 }, recentSolves: [] } } = 
           await chrome.storage.sync.get("stats");
+    
+    // Check if this solution was already counted (prevent duplicates)
+    const alreadyCounted = stats.recentSolves.some(solve => 
+      solve.submissionId === solution.submissionId ||
+      (solve.title === solution.title && 
+       solve.language === solution.lang &&
+       Math.abs(solve.timestamp - solution.timestamp) < 30000)
+    );
+    
+    if (alreadyCounted) {
+      console.info(`[Leet2Git] Solution already counted in stats: ${solution.title}`);
+      return;
+    }
     
     // Update difficulty counts
     const difficulty = solution.difficulty.toLowerCase();
     if (stats.counts[difficulty] !== undefined) {
       stats.counts[difficulty]++;
+      console.info(`[Leet2Git] Updated ${difficulty} count to ${stats.counts[difficulty]}`);
     }
     
-    // Add to recent solves
+    // Add to recent solves with submission ID for tracking
     stats.recentSolves.unshift({
+      submissionId: solution.submissionId,
       title: solution.title,
       language: solution.lang,
       difficulty: solution.difficulty,
@@ -292,6 +312,7 @@ async function updateStats(solution) {
     stats.recentSolves = stats.recentSolves.slice(0, 10);
     
     await chrome.storage.sync.set({ stats });
+    console.info(`[Leet2Git] Stats updated for ${solution.title}`);
   } catch (error) {
     console.error("Error updating stats:", error);
   }
@@ -306,79 +327,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     case "push":
       handlePush(sendResponse);
       return true;
-    case "solved_dom":
-      handleSolvedFromDOM(message.payload, sendResponse);
-      return true;
     default:
       sendResponse({ error: "Unknown message type" });
   }
 });
 
-// Handle DOM-based captures (fallback only)
-async function handleSolvedFromDOM(payload, sendResponse) {
-  try {
-    // Only use DOM capture if no network capture happened recently
-    const timeSinceNetworkCapture = Date.now() - lastNetworkCapture;
-    if (timeSinceNetworkCapture < 10000) { // 10 seconds
-      console.warn(`[Leet2Git] Ignoring DOM capture - network capture happened ${timeSinceNetworkCapture}ms ago`);
-      sendResponse({ success: false, reason: "network_capture_recent" });
-      return;
-    }
-    
-    // Only process if enough time has passed since last DOM capture
-    const timeSinceLastDOM = Date.now() - lastDOMCapture;
-    if (timeSinceLastDOM < 5000) { // 5 seconds
-      console.warn(`[Leet2Git] DOM capture throttled - last capture ${timeSinceLastDOM}ms ago`);
-      sendResponse({ success: false, reason: "throttled" });
-      return;
-    }
-    
-    console.warn(`[Leet2Git] Using DOM fallback capture`);
-    
-    // Add missing fields for DOM capture
-    const solution = {
-      ...payload,
-      submissionId: payload.submissionId || `dom-${Date.now()}`,
-      tag: payload.tag || "Uncategorized",
-      capturedAt: new Date().toISOString(),
-      timestamp: payload.timestamp || Date.now()
-    };
-    
-    // Check for duplicates
-    const { pending = [] } = await chrome.storage.sync.get("pending");
-    const isDuplicate = pending.some(item => 
-      item.title === solution.title && 
-      item.lang === solution.language &&
-      Math.abs(item.timestamp - solution.timestamp) < 60000 // Within 1 minute
-    );
-    
-    if (isDuplicate) {
-      console.warn(`[Leet2Git] Duplicate DOM capture detected, skipping`);
-      sendResponse({ success: false, reason: "duplicate" });
-      return;
-    }
-    
-    // Add to pending
-    pending.push(solution);
-    await chrome.storage.sync.set({ pending });
-    
-    // Update stats
-    await updateStats(solution);
-    
-    // Update badge
-    await updateBadge();
-    
-    // Mark DOM capture time
-    lastDOMCapture = Date.now();
-    
-    console.warn(`[Leet2Git] DOM fallback capture successful: ${solution.title}`);
-    sendResponse({ success: true });
-    
-  } catch (error) {
-    console.error(`[Leet2Git] DOM capture error:`, error);
-    sendResponse({ error: error.message });
-  }
-}
+
 
 // Get home data for popup
 async function handleGetHomeData(sendResponse) {
@@ -406,19 +360,32 @@ async function handleGetHomeData(sendResponse) {
 // Handle push to GitHub
 async function handlePush(sendResponse) {
   try {
-    const { github_auth } = await chrome.storage.sync.get("github_auth");
-    if (!github_auth || !github_auth.token) {
-      sendResponse({ error: "GitHub not connected" });
+    // Get all storage data to debug
+    const allData = await chrome.storage.sync.get();
+    console.info(`[Leet2Git] All storage data:`, allData);
+    
+    const { github_auth, auth, github_token, token } = allData;
+    const githubAuth = github_auth || auth;
+    const authToken = githubAuth?.token || github_token || token;
+    
+    if (!authToken) {
+      console.error(`[Leet2Git] No GitHub token found in storage`);
+      sendResponse({ error: "GitHub not connected. Please configure your GitHub token in Options." });
       return;
     }
 
-    const { repo_config } = await chrome.storage.sync.get("repo_config");
-    if (!repo_config || !repo_config.owner || !repo_config.repo) {
-      sendResponse({ error: "Repository not configured" });
+    const { repo_config, config, owner, repo } = allData;
+    const repoConfig = repo_config || config;
+    const repoOwner = repoConfig?.owner || owner;
+    const repoName = repoConfig?.repo || repo;
+    
+    if (!repoOwner || !repoName) {
+      console.error(`[Leet2Git] Repository not configured. Owner: ${repoOwner}, Repo: ${repoName}`);
+      sendResponse({ error: "Repository not configured. Please set up your repository in Options." });
       return;
     }
 
-    const { pending = [] } = await chrome.storage.sync.get("pending");
+    const { pending = [] } = allData;
     if (pending.length === 0) {
       sendResponse({ error: "No pending solutions" });
       return;
@@ -429,9 +396,17 @@ async function handlePush(sendResponse) {
     const results = [];
     const errors = [];
     
+    const authConfig = { token: authToken };
+    const repoConfiguration = { 
+      owner: repoOwner, 
+      repo: repoName,
+      folderStructure: repoConfig?.folderStructure || 'difficulty',
+      includeDescription: repoConfig?.includeDescription !== false
+    };
+    
     for (const solution of pending) {
       try {
-        const result = await pushSolutionToGitHub(solution, github_auth, repo_config);
+        const result = await pushSolutionToGitHub(solution, authConfig, repoConfiguration);
         if (result.success) {
           results.push(result);
         } else {
