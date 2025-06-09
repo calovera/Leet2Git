@@ -37,23 +37,44 @@ export default function PushTab({ onDataUpdate }: PushTabProps) {
     setResults('');
     
     try {
-      chrome.runtime.sendMessage({ type: 'push' }, (response) => {
-        if (response?.success) {
-          const successCount = response.results.filter((r: any) => r.success).length;
-          const failCount = response.results.filter((r: any) => !r.success).length;
-          
-          let message = `✅ Successfully pushed ${successCount} solution(s)`;
-          if (failCount > 0) {
-            message += `\n❌ Failed to push ${failCount} solution(s)`;
-          }
-          
-          setResults(message);
-          loadPendingItems(); // Reload to update the list
-          onDataUpdate?.();
-        } else {
-          setResults(`❌ Push failed: ${response?.error || 'Unknown error'}`);
+      // First check if GitHub is connected
+      chrome.runtime.sendMessage({ type: 'getHomeData' }, (homeResponse) => {
+        if (!homeResponse?.success || !homeResponse.data.auth?.connected) {
+          setResults('❌ GitHub not connected. Please configure your GitHub token in Options.');
+          setIsPushing(false);
+          return;
         }
-        setIsPushing(false);
+        
+        if (!homeResponse.data.config?.owner) {
+          setResults('❌ Repository not configured. Please set up your repository in Options.');
+          setIsPushing(false);
+          return;
+        }
+        
+        // Proceed with push
+        chrome.runtime.sendMessage({ type: 'push' }, (response) => {
+          if (response?.success) {
+            const successCount = response.results.filter((r: any) => r.success).length;
+            const failCount = response.results.filter((r: any) => !r.success).length;
+            
+            let message = `✅ Successfully pushed ${successCount} solution(s)`;
+            if (failCount > 0) {
+              message += `\n❌ Failed to push ${failCount} solution(s)`;
+              // Show first error for debugging
+              const firstError = response.results.find((r: any) => !r.success);
+              if (firstError?.error) {
+                message += `\nError: ${firstError.error}`;
+              }
+            }
+            
+            setResults(message);
+            loadPendingItems();
+            onDataUpdate?.();
+          } else {
+            setResults(`❌ Push failed: ${response?.error || 'Unknown error'}`);
+          }
+          setIsPushing(false);
+        });
       });
     } catch (error) {
       setResults(`❌ Push failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
