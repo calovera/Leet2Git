@@ -1,7 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { GitHubAuth, RepoCfg } from '../types/models';
-import { getAuth, setAuth, getConfig, setConfig } from '../utils/storage';
-import { verifyToken } from '../utils/github';
 
 interface OptionsState {
   token: string;
@@ -13,8 +10,6 @@ interface OptionsState {
   branch: string;
   private: boolean;
   folderStructure: 'difficulty' | 'topic' | 'flat';
-  includeDescription: boolean;
-  includeTestCases: boolean;
   loading: boolean;
   message: string;
   messageType: 'success' | 'error' | '';
@@ -30,9 +25,7 @@ export default function Options() {
     repo: 'leetcode-solutions',
     branch: 'main',
     private: false,
-    folderStructure: 'difficulty',
-    includeDescription: true,
-    includeTestCases: true,
+    folderStructure: 'topic',
     loading: false,
     message: '',
     messageType: ''
@@ -44,323 +37,312 @@ export default function Options() {
 
   const loadSettings = async () => {
     try {
-      const auth = await getAuth();
-      const config = await getConfig();
+      const result = await chrome.storage.sync.get(['github_token', 'github_user', 'auth', 'config', 'owner', 'repo', 'branch']);
+      
+      if (result.github_token && result.github_user) {
+        setState(prev => ({
+          ...prev,
+          token: result.github_token,
+          username: result.github_user.username || '',
+          email: result.github_user.email || '',
+          connected: result.github_user.connected || false
+        }));
+      } else if (result.auth) {
+        setState(prev => ({
+          ...prev,
+          token: result.auth.token || '',
+          username: result.auth.username || '',
+          email: result.auth.email || '',
+          connected: result.auth.connected || false
+        }));
+      }
 
-      setState(prev => ({
-        ...prev,
-        token: auth?.token || '',
-        username: auth?.username || '',
-        email: auth?.email || '',
-        connected: auth?.connected || false,
-        owner: config.owner,
-        repo: config.repo,
-        branch: config.branch,
-        private: config.private,
-        folderStructure: config.folderStructure,
-        includeDescription: config.includeDescription,
-        includeTestCases: config.includeTestCases
-      }));
+      if (result.config) {
+        setState(prev => ({
+          ...prev,
+          owner: result.config.owner || '',
+          repo: result.config.repo || 'leetcode-solutions',
+          branch: result.config.branch || 'main',
+          private: result.config.private || false,
+          folderStructure: result.config.folderStructure || 'topic'
+        }));
+      } else {
+        setState(prev => ({
+          ...prev,
+          owner: result.owner || '',
+          repo: result.repo || 'leetcode-solutions',
+          branch: result.branch || 'main'
+        }));
+      }
     } catch (error) {
-      console.error('Failed to load settings:', error);
+      console.error('Error loading settings:', error);
     }
   };
 
-  const showMessage = (message: string, type: 'success' | 'error') => {
-    setState(prev => ({ ...prev, message, messageType: type }));
-    setTimeout(() => {
-      setState(prev => ({ ...prev, message: '', messageType: '' }));
-    }, 5000);
-  };
-
-  const handleTokenSave = async () => {
-    if (!state.token.trim()) {
-      showMessage('Please enter a GitHub token', 'error');
+  const verifyToken = async () => {
+    if (!state.token) {
+      showStatus('Please enter a GitHub token', false);
       return;
     }
 
     setState(prev => ({ ...prev, loading: true }));
 
     try {
-      const verification = await verifyToken(state.token);
-      
-      if (verification.valid && verification.username) {
-        const auth: GitHubAuth = {
+      const response = await fetch('https://api.github.com/user', {
+        headers: {
+          'Authorization': `Bearer ${state.token}`,
+          'Accept': 'application/vnd.github.v3+json'
+        }
+      });
+
+      const data = await response.json();
+
+      if (data.login) {
+        const auth = {
           token: state.token,
-          username: verification.username,
-          email: '', // GitHub API doesn't always return email
+          username: data.login,
+          email: data.email || '',
           connected: true
         };
 
-        await setAuth(auth);
-        
         setState(prev => ({
           ...prev,
-          username: verification.username || '',
+          username: data.login,
+          email: data.email || '',
           connected: true,
-          owner: prev.owner || verification.username || ''
+          owner: prev.owner || data.login
         }));
 
-        showMessage('GitHub token saved successfully!', 'success');
+        await chrome.storage.sync.set({ auth, github_token: state.token, github_user: auth });
+        showStatus('GitHub connected successfully!', true);
       } else {
-        showMessage(verification.error || 'Invalid GitHub token', 'error');
+        showStatus('Invalid GitHub token', false);
       }
     } catch (error) {
-      showMessage('Failed to verify GitHub token', 'error');
+      showStatus('Error verifying token', false);
     } finally {
       setState(prev => ({ ...prev, loading: false }));
     }
   };
 
-  const handleConfigSave = async () => {
-    if (!state.owner.trim()) {
-      showMessage('Repository owner is required', 'error');
-      return;
-    }
-
-    if (!state.repo.trim()) {
-      showMessage('Repository name is required', 'error');
-      return;
-    }
-
-    setState(prev => ({ ...prev, loading: true }));
-
+  const saveSettings = async () => {
     try {
-      const config: RepoCfg = {
+      const config = {
         owner: state.owner,
         repo: state.repo,
         branch: state.branch,
         private: state.private,
         folderStructure: state.folderStructure,
-        includeDescription: state.includeDescription,
-        includeTestCases: state.includeTestCases
+        includeDescription: true,
+        includeTestCases: false
       };
 
-      await setConfig(config);
-      showMessage('Repository configuration saved!', 'success');
+      await chrome.storage.sync.set({ 
+        config,
+        owner: state.owner,
+        repo: state.repo,
+        branch: state.branch
+      });
+
+      showStatus('Settings saved successfully!', true);
     } catch (error) {
-      showMessage('Failed to save configuration', 'error');
-    } finally {
-      setState(prev => ({ ...prev, loading: false }));
+      showStatus('Error saving settings', false);
     }
   };
 
-  const handleDisconnect = async () => {
-    try {
-      await setAuth({
-        token: '',
-        username: '',
-        email: '',
-        connected: false
-      });
+  const showStatus = (message: string, success: boolean) => {
+    setState(prev => ({
+      ...prev,
+      message,
+      messageType: success ? 'success' : 'error'
+    }));
 
+    setTimeout(() => {
       setState(prev => ({
         ...prev,
-        token: '',
-        username: '',
-        email: '',
-        connected: false
+        message: '',
+        messageType: ''
       }));
+    }, 3000);
+  };
 
-      showMessage('Disconnected from GitHub', 'success');
-    } catch (error) {
-      showMessage('Failed to disconnect', 'error');
-    }
+  const handleInputChange = (field: keyof OptionsState, value: any) => {
+    setState(prev => ({ ...prev, [field]: value }));
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-2xl mx-auto bg-white rounded-lg shadow-sm border border-gray-200 p-8">
-        <div className="flex items-center mb-8">
-          <div className="w-8 h-8 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-md flex items-center justify-center mr-3">
-            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-            </svg>
-          </div>
-          <h1 className="text-2xl font-semibold text-gray-900">Leet2Git Options</h1>
+    <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif', maxWidth: '600px', margin: '0 auto' }}>
+      <h1 style={{ color: '#333', marginBottom: '30px' }}>Leet2Git Settings</h1>
+
+      {/* GitHub Authentication */}
+      <div style={{ marginBottom: '30px', padding: '20px', border: '1px solid #ddd', borderRadius: '8px' }}>
+        <h2 style={{ color: '#555', marginBottom: '15px' }}>GitHub Authentication</h2>
+        
+        <div style={{ marginBottom: '15px' }}>
+          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+            GitHub Personal Access Token:
+          </label>
+          <input
+            type="password"
+            value={state.token}
+            onChange={(e) => handleInputChange('token', e.target.value)}
+            placeholder="Enter your GitHub token"
+            style={{
+              width: '100%',
+              padding: '8px',
+              border: '1px solid #ccc',
+              borderRadius: '4px',
+              fontSize: '14px'
+            }}
+          />
         </div>
 
-        {state.message && (
-          <div className={`mb-6 p-4 rounded-lg ${
-            state.messageType === 'success' 
-              ? 'bg-green-50 border border-green-200 text-green-800' 
-              : 'bg-red-50 border border-red-200 text-red-800'
-          }`}>
-            {state.message}
+        <button
+          onClick={verifyToken}
+          disabled={state.loading || !state.token}
+          style={{
+            padding: '10px 20px',
+            backgroundColor: state.connected ? '#28a745' : '#007bff',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: state.loading || !state.token ? 'not-allowed' : 'pointer',
+            opacity: state.loading || !state.token ? 0.6 : 1
+          }}
+        >
+          {state.loading ? 'Verifying...' : state.connected ? 'Connected' : 'Verify Token'}
+        </button>
+
+        {state.connected && (
+          <div style={{ marginTop: '10px', color: '#28a745' }}>
+            ✓ Connected as {state.username}
           </div>
         )}
-
-        {/* GitHub Authentication */}
-        <div className="mb-8">
-          <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-            </svg>
-            GitHub Authentication
-          </h2>
-
-          {state.connected ? (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-green-800 font-medium">Connected as @{state.username}</p>
-                  <p className="text-green-600 text-sm">GitHub integration is active</p>
-                </div>
-                <button
-                  onClick={handleDisconnect}
-                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
-                >
-                  Disconnect
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  GitHub Personal Access Token
-                </label>
-                <input
-                  type="password"
-                  value={state.token}
-                  onChange={(e) => setState(prev => ({ ...prev, token: e.target.value }))}
-                  placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-                <p className="text-sm text-gray-500 mt-1">
-                  Generate a token at{' '}
-                  <a href="https://github.com/settings/tokens" target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">
-                    github.com/settings/tokens
-                  </a>{' '}
-                  with 'repo' scope
-                </p>
-              </div>
-              <button
-                onClick={handleTokenSave}
-                disabled={state.loading}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:bg-gray-300 transition-colors"
-              >
-                {state.loading ? 'Verifying...' : 'Connect GitHub'}
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Repository Configuration */}
-        <div className="mb-8">
-          <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z" />
-            </svg>
-            Repository Configuration
-          </h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Repository Owner
-              </label>
-              <input
-                type="text"
-                value={state.owner}
-                onChange={(e) => setState(prev => ({ ...prev, owner: e.target.value }))}
-                placeholder="your-username"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Repository Name
-              </label>
-              <input
-                type="text"
-                value={state.repo}
-                onChange={(e) => setState(prev => ({ ...prev, repo: e.target.value }))}
-                placeholder="leetcode-solutions"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Branch
-              </label>
-              <input
-                type="text"
-                value={state.branch}
-                onChange={(e) => setState(prev => ({ ...prev, branch: e.target.value }))}
-                placeholder="main"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Folder Structure
-              </label>
-              <select
-                value={state.folderStructure}
-                onChange={(e) => setState(prev => ({ ...prev, folderStructure: e.target.value as 'difficulty' | 'topic' | 'flat' }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value="difficulty">By Difficulty (easy/, medium/, hard/)</option>
-                <option value="topic">By Topic</option>
-                <option value="flat">Flat (all in root)</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="space-y-3 mb-4">
-            <label className="flex items-center">
-              <input
-                type="checkbox"
-                checked={state.private}
-                onChange={(e) => setState(prev => ({ ...prev, private: e.target.checked }))}
-                className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-              />
-              <span className="ml-2 text-sm text-gray-700">Create private repository</span>
-            </label>
-            <label className="flex items-center">
-              <input
-                type="checkbox"
-                checked={state.includeDescription}
-                onChange={(e) => setState(prev => ({ ...prev, includeDescription: e.target.checked }))}
-                className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-              />
-              <span className="ml-2 text-sm text-gray-700">Include problem description in files</span>
-            </label>
-            <label className="flex items-center">
-              <input
-                type="checkbox"
-                checked={state.includeTestCases}
-                onChange={(e) => setState(prev => ({ ...prev, includeTestCases: e.target.checked }))}
-                className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-              />
-              <span className="ml-2 text-sm text-gray-700">Include test cases in files</span>
-            </label>
-          </div>
-
-          <button
-            onClick={handleConfigSave}
-            disabled={state.loading}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:bg-gray-300 transition-colors"
-          >
-            {state.loading ? 'Saving...' : 'Save Configuration'}
-          </button>
-        </div>
-
-        {/* Instructions */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h3 className="text-sm font-medium text-blue-900 mb-2">How to use:</h3>
-          <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
-            <li>Create a GitHub Personal Access Token with 'repo' scope</li>
-            <li>Enter the token above and click "Connect GitHub"</li>
-            <li>Configure your repository settings</li>
-            <li>Solve problems on LeetCode - they'll be automatically synced!</li>
-          </ol>
-        </div>
       </div>
+
+      {/* Repository Configuration */}
+      <div style={{ marginBottom: '30px', padding: '20px', border: '1px solid #ddd', borderRadius: '8px' }}>
+        <h2 style={{ color: '#555', marginBottom: '15px' }}>Repository Configuration</h2>
+
+        <div style={{ marginBottom: '15px' }}>
+          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+            Repository Owner:
+          </label>
+          <input
+            type="text"
+            value={state.owner}
+            onChange={(e) => handleInputChange('owner', e.target.value)}
+            placeholder="GitHub username or organization"
+            style={{
+              width: '100%',
+              padding: '8px',
+              border: '1px solid #ccc',
+              borderRadius: '4px',
+              fontSize: '14px'
+            }}
+          />
+        </div>
+
+        <div style={{ marginBottom: '15px' }}>
+          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+            Repository Name:
+          </label>
+          <input
+            type="text"
+            value={state.repo}
+            onChange={(e) => handleInputChange('repo', e.target.value)}
+            placeholder="Repository name"
+            style={{
+              width: '100%',
+              padding: '8px',
+              border: '1px solid #ccc',
+              borderRadius: '4px',
+              fontSize: '14px'
+            }}
+          />
+        </div>
+
+        <div style={{ marginBottom: '15px' }}>
+          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+            Branch:
+          </label>
+          <input
+            type="text"
+            value={state.branch}
+            onChange={(e) => handleInputChange('branch', e.target.value)}
+            placeholder="main"
+            style={{
+              width: '100%',
+              padding: '8px',
+              border: '1px solid #ccc',
+              borderRadius: '4px',
+              fontSize: '14px'
+            }}
+          />
+        </div>
+
+        <div style={{ marginBottom: '15px' }}>
+          <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={state.private}
+              onChange={(e) => handleInputChange('private', e.target.checked)}
+              style={{ marginRight: '8px' }}
+            />
+            Private Repository
+          </label>
+        </div>
+
+        <div style={{ marginBottom: '15px' }}>
+          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+            Folder Structure:
+          </label>
+          <select
+            value={state.folderStructure}
+            onChange={(e) => handleInputChange('folderStructure', e.target.value)}
+            style={{
+              width: '100%',
+              padding: '8px',
+              border: '1px solid #ccc',
+              borderRadius: '4px',
+              fontSize: '14px'
+            }}
+          >
+            <option value="topic">By Topic (Array, Hash Table, etc.)</option>
+            <option value="difficulty">By Difficulty (Easy, Medium, Hard)</option>
+            <option value="flat">Flat (All in root)</option>
+          </select>
+        </div>
+
+        <button
+          onClick={saveSettings}
+          style={{
+            padding: '10px 20px',
+            backgroundColor: '#28a745',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer'
+          }}
+        >
+          Save Settings
+        </button>
+      </div>
+
+      {/* Status Message */}
+      {state.message && (
+        <div
+          style={{
+            padding: '10px',
+            borderRadius: '4px',
+            backgroundColor: state.messageType === 'success' ? '#d4edda' : '#f8d7da',
+            color: state.messageType === 'success' ? '#155724' : '#721c24',
+            border: `1px solid ${state.messageType === 'success' ? '#c3e6cb' : '#f5c6cb'}`
+          }}
+        >
+          {state.message}
+        </div>
+      )}
     </div>
   );
 }

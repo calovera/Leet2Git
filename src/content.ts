@@ -1,90 +1,101 @@
-// Content script to capture GraphQL responses for metadata
-console.log('[Leet2Git] Content script loaded');
+// Leet2Git Content Script - GraphQL Metadata Capture
+console.log("Leet2Git content script loaded");
 
-// Intercept fetch requests to capture GraphQL responses
-const originalFetch = window.fetch;
-window.fetch = async function(...args) {
-  const response = await originalFetch.apply(this, args);
+// Intercept fetch requests for GraphQL metadata
+(function() {
+  const originalFetch = window.fetch;
   
-  // Check if this is a GraphQL request
-  if (args[0]?.includes?.('/graphql') || 
-      (typeof args[0] === 'object' && (args[0] as any).url?.includes('/graphql'))) {
+  window.fetch = function(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
     
-    // Clone the response to read it without consuming the original
-    const clonedResponse = response.clone();
-    
-    try {
-      const data = await clonedResponse.json();
+    if (url.includes('/graphql') && init?.method === 'POST') {
+      const originalThen = originalFetch.call(this, input, init).then.bind(originalFetch.call(this, input, init));
       
-      // Check if this contains question metadata
-      if (data?.data?.question) {
-        const questionData = data.data.question;
-        
-        // Send metadata to background script
-        chrome.runtime.sendMessage({
-          type: 'graphql_question_data',
-          payload: {
-            slug: questionData.titleSlug,
-            title: questionData.title,
-            difficulty: questionData.difficulty,
-            topicTags: questionData.topicTags,
-            categoryTitle: questionData.categoryTitle
-          }
-        });
-        
-        console.log('[Leet2Git] Captured question metadata:', questionData.titleSlug);
-      }
-    } catch (error) {
-      // Ignore JSON parsing errors
-    }
-  }
-  
-  return response;
-};
-
-// Also intercept XMLHttpRequest for older requests
-const originalXHROpen = XMLHttpRequest.prototype.open;
-const originalXHRSend = XMLHttpRequest.prototype.send;
-
-XMLHttpRequest.prototype.open = function(method, url, ...args) {
-  (this as any)._url = url;
-  (this as any)._method = method;
-  return originalXHROpen.apply(this, [method, url, ...args]);
-};
-
-XMLHttpRequest.prototype.send = function(body) {
-  if ((this as any)._url?.includes('/graphql') && (this as any)._method === 'POST') {
-    const originalOnLoad = this.onload;
-    
-    this.onload = function(e) {
-      try {
-        const response = JSON.parse(this.responseText);
-        
-        if (response?.data?.question) {
-          const questionData = response.data.question;
-          
-          chrome.runtime.sendMessage({
-            type: 'graphql_question_data',
-            payload: {
-              slug: questionData.titleSlug,
-              title: questionData.title,
-              difficulty: questionData.difficulty,
-              topicTags: questionData.topicTags,
-              categoryTitle: questionData.categoryTitle
+      return originalFetch.call(this, input, init).then(async (response) => {
+        if (response.ok && response.headers.get('content-type')?.includes('application/json')) {
+          try {
+            const clonedResponse = response.clone();
+            const data = await clonedResponse.json();
+            
+            if (data?.data?.question) {
+              const questionData = {
+                slug: data.data.question.titleSlug,
+                title: data.data.question.title,
+                difficulty: data.data.question.difficulty,
+                categoryTitle: data.data.question.categoryTitle,
+                topicTags: data.data.question.topicTags || []
+              };
+              
+              chrome.runtime.sendMessage({
+                type: 'graphql_question_data',
+                data: questionData
+              }, (response) => {
+                if (response?.success) {
+                  console.log('[Leet2Git] GraphQL metadata sent:', questionData.title);
+                }
+              });
             }
-          });
-          
-          console.log('[Leet2Git] Captured question metadata via XHR:', questionData.titleSlug);
+          } catch (error) {
+            console.error('[Leet2Git] Error processing GraphQL response:', error);
+          }
         }
-      } catch (error) {
-        // Ignore parsing errors
-      }
-      
-      if (originalOnLoad) {
-        originalOnLoad.apply(this, arguments);
-      }
-    };
-  }
+        return response;
+      });
+    }
+    
+    return originalFetch.call(this, input, init);
+  };
+})();
+
+// Intercept XMLHttpRequest for additional GraphQL capture
+(function() {
+  const originalXHROpen = XMLHttpRequest.prototype.open;
+  const originalXHRSend = XMLHttpRequest.prototype.send;
   
-  return originalXHRSend.apply(this, arguments);
-};
+  XMLHttpRequest.prototype.open = function(method: string, url: string | URL, ...args: any[]) {
+    this._method = method;
+    this._url = typeof url === 'string' ? url : url.href;
+    return originalXHROpen.apply(this, [method, url, ...args]);
+  };
+  
+  XMLHttpRequest.prototype.send = function(body?: Document | XMLHttpRequestBodyInit | null) {
+    if (this._method === 'POST' && this._url?.includes('/graphql')) {
+      const originalOnLoad = this.onload;
+      
+      this.onload = function(event) {
+        try {
+          if (this.responseText && this.getResponseHeader('content-type')?.includes('application/json')) {
+            const data = JSON.parse(this.responseText);
+            
+            if (data?.data?.question) {
+              const questionData = {
+                slug: data.data.question.titleSlug,
+                title: data.data.question.title,
+                difficulty: data.data.question.difficulty,
+                categoryTitle: data.data.question.categoryTitle,
+                topicTags: data.data.question.topicTags || []
+              };
+              
+              chrome.runtime.sendMessage({
+                type: 'graphql_question_data',
+                data: questionData
+              }, (response) => {
+                if (response?.success) {
+                  console.log('[Leet2Git] XHR GraphQL metadata sent:', questionData.title);
+                }
+              });
+            }
+          }
+        } catch (error) {
+          console.error('[Leet2Git] Error processing XHR GraphQL response:', error);
+        }
+        
+        if (originalOnLoad) {
+          originalOnLoad.call(this, event);
+        }
+      };
+    }
+    
+    return originalXHRSend.call(this, body);
+  };
+})();
