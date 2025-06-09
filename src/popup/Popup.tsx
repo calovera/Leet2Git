@@ -139,7 +139,30 @@ const HomeStats = ({ stats }: { stats: Stats }) => {
             flexDirection: 'column',
             gap: '8px'
           }}>
-            {stats.recentSolves.slice(0, 5).map((solve) => (
+            {stats.recentSolves.length === 0 ? (
+              <div style={{
+                padding: '24px',
+                textAlign: 'center',
+                color: '#64748b'
+              }}>
+                <svg style={{
+                  width: '32px',
+                  height: '32px',
+                  margin: '0 auto 12px auto',
+                  color: '#cbd5e1'
+                }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                <div style={{
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#0f172a',
+                  marginBottom: '4px'
+                }}>No recent solutions</div>
+                <div style={{fontSize: '12px'}}>Solve problems on LeetCode to see them here</div>
+              </div>
+            ) : (
+              stats.recentSolves.slice(0, 5).map((solve) => (
               <div key={solve.id} style={{
                 display: 'flex',
                 alignItems: 'center',

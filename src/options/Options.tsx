@@ -171,178 +171,293 @@ export default function Options() {
   };
 
   return (
-    <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif', maxWidth: '600px', margin: '0 auto' }}>
-      <h1 style={{ color: '#333', marginBottom: '30px' }}>Leet2Git Settings</h1>
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      padding: '40px 20px',
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+    }}>
+      <div style={{ maxWidth: '600px', margin: '0 auto' }}>
+        <h1 style={{
+          color: '#ffffff',
+          fontSize: '32px',
+          fontWeight: '700',
+          marginBottom: '40px',
+          textAlign: 'center',
+          textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)'
+        }}>Leet2Git Settings</h1>
 
-      {/* GitHub Authentication */}
-      <div style={{ marginBottom: '30px', padding: '20px', border: '1px solid #ddd', borderRadius: '8px' }}>
-        <h2 style={{ color: '#555', marginBottom: '15px' }}>GitHub Authentication</h2>
+        {/* GitHub Authentication */}
+        <div style={{
+          marginBottom: '30px',
+          padding: '24px',
+          backgroundColor: 'rgba(255, 255, 255, 0.1)',
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          borderRadius: '16px',
+          backdropFilter: 'blur(10px)'
+        }}>
+          <h2 style={{
+            color: 'rgba(255, 255, 255, 0.9)',
+            fontSize: '20px',
+            fontWeight: '600',
+            marginBottom: '20px'
+          }}>GitHub Authentication</h2>
         
-        <div style={{ marginBottom: '15px' }}>
-          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-            GitHub Personal Access Token:
-          </label>
-          <input
-            type="password"
-            value={state.token}
-            onChange={(e) => handleInputChange('token', e.target.value)}
-            placeholder="Enter your GitHub token"
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{
+              display: 'block',
+              marginBottom: '8px',
+              color: 'rgba(255, 255, 255, 0.9)',
+              fontSize: '14px',
+              fontWeight: '600'
+            }}>
+              GitHub Personal Access Token:
+            </label>
+            <input
+              type="password"
+              value={state.token}
+              onChange={(e) => handleInputChange('token', e.target.value)}
+              placeholder="Enter your GitHub token"
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                borderRadius: '8px',
+                fontSize: '14px',
+                backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                color: '#1e293b',
+                outline: 'none'
+              }}
+            />
+          </div>
+
+          <button
+            onClick={verifyToken}
+            disabled={state.loading || !state.token}
             style={{
-              width: '100%',
-              padding: '8px',
-              border: '1px solid #ccc',
-              borderRadius: '4px',
-              fontSize: '14px'
+              padding: '12px 24px',
+              backgroundColor: state.connected ? '#10b981' : '#3b82f6',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '14px',
+              fontWeight: '600',
+              cursor: state.loading || !state.token ? 'not-allowed' : 'pointer',
+              opacity: state.loading || !state.token ? 0.6 : 1,
+              transition: 'all 0.2s',
+              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
             }}
-          />
+          >
+            {state.loading ? 'Verifying...' : state.connected ? 'Connected' : 'Verify Token'}
+          </button>
+
+          {state.connected && (
+            <div style={{
+              marginTop: '16px',
+              color: '#10b981',
+              fontSize: '14px',
+              fontWeight: '500'
+            }}>
+              ✓ Connected as {state.username}
+            </div>
+          )}
         </div>
 
-        <button
-          onClick={verifyToken}
-          disabled={state.loading || !state.token}
-          style={{
-            padding: '10px 20px',
-            backgroundColor: state.connected ? '#28a745' : '#007bff',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: state.loading || !state.token ? 'not-allowed' : 'pointer',
-            opacity: state.loading || !state.token ? 0.6 : 1
-          }}
-        >
-          {state.loading ? 'Verifying...' : state.connected ? 'Connected' : 'Verify Token'}
-        </button>
+        {/* Repository Configuration */}
+        <div style={{
+          marginBottom: '30px',
+          padding: '24px',
+          backgroundColor: 'rgba(255, 255, 255, 0.1)',
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          borderRadius: '16px',
+          backdropFilter: 'blur(10px)'
+        }}>
+          <h2 style={{
+            color: 'rgba(255, 255, 255, 0.9)',
+            fontSize: '20px',
+            fontWeight: '600',
+            marginBottom: '20px'
+          }}>Repository Configuration</h2>
 
-        {state.connected && (
-          <div style={{ marginTop: '10px', color: '#28a745' }}>
-            ✓ Connected as {state.username}
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{
+              display: 'block',
+              marginBottom: '8px',
+              color: 'rgba(255, 255, 255, 0.9)',
+              fontSize: '14px',
+              fontWeight: '600'
+            }}>
+              Repository Owner:
+            </label>
+            <input
+              type="text"
+              value={state.owner}
+              onChange={(e) => handleInputChange('owner', e.target.value)}
+              placeholder="GitHub username or organization"
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                borderRadius: '8px',
+                fontSize: '14px',
+                backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                color: '#1e293b',
+                outline: 'none'
+              }}
+            />
+          </div>
+
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{
+              display: 'block',
+              marginBottom: '8px',
+              color: 'rgba(255, 255, 255, 0.9)',
+              fontSize: '14px',
+              fontWeight: '600'
+            }}>
+              Repository Name:
+            </label>
+            <input
+              type="text"
+              value={state.repo}
+              onChange={(e) => handleInputChange('repo', e.target.value)}
+              placeholder="Repository name"
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                borderRadius: '8px',
+                fontSize: '14px',
+                backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                color: '#1e293b',
+                outline: 'none'
+              }}
+            />
+          </div>
+
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{
+              display: 'block',
+              marginBottom: '8px',
+              color: 'rgba(255, 255, 255, 0.9)',
+              fontSize: '14px',
+              fontWeight: '600'
+            }}>
+              Branch:
+            </label>
+            <input
+              type="text"
+              value={state.branch}
+              onChange={(e) => handleInputChange('branch', e.target.value)}
+              placeholder="main"
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                borderRadius: '8px',
+                fontSize: '14px',
+                backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                color: '#1e293b',
+                outline: 'none'
+              }}
+            />
+          </div>
+
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{
+              display: 'flex',
+              alignItems: 'center',
+              cursor: 'pointer',
+              color: 'rgba(255, 255, 255, 0.9)',
+              fontSize: '14px',
+              fontWeight: '600'
+            }}>
+              <input
+                type="checkbox"
+                checked={state.private}
+                onChange={(e) => handleInputChange('private', e.target.checked)}
+                style={{
+                  marginRight: '12px',
+                  width: '16px',
+                  height: '16px',
+                  accentColor: '#3b82f6'
+                }}
+              />
+              Private Repository
+            </label>
+          </div>
+
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{
+              display: 'block',
+              marginBottom: '8px',
+              color: 'rgba(255, 255, 255, 0.9)',
+              fontSize: '14px',
+              fontWeight: '600'
+            }}>
+              Folder Structure:
+            </label>
+            <select
+              value={state.folderStructure}
+              onChange={(e) => handleInputChange('folderStructure', e.target.value)}
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                borderRadius: '8px',
+                fontSize: '14px',
+                backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                color: '#1e293b',
+                outline: 'none'
+              }}
+            >
+              <option value="topic">By Topic (Array, Hash Table, etc.)</option>
+              <option value="difficulty">By Difficulty (Easy, Medium, Hard)</option>
+              <option value="flat">Flat (All in root)</option>
+            </select>
+          </div>
+
+          <button
+            onClick={saveSettings}
+            style={{
+              padding: '12px 24px',
+              backgroundColor: '#10b981',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '14px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+            }}
+          >
+            Save Settings
+          </button>
+        </div>
+
+        {/* Status Message */}
+        {state.message && (
+          <div
+            style={{
+              padding: '16px',
+              borderRadius: '8px',
+              backgroundColor: state.messageType === 'success' 
+                ? 'rgba(16, 185, 129, 0.1)' 
+                : 'rgba(239, 68, 68, 0.1)',
+              color: state.messageType === 'success' ? '#10b981' : '#ef4444',
+              border: `1px solid ${state.messageType === 'success' 
+                ? 'rgba(16, 185, 129, 0.2)' 
+                : 'rgba(239, 68, 68, 0.2)'}`,
+              backdropFilter: 'blur(10px)',
+              fontSize: '14px',
+              fontWeight: '500'
+            }}
+          >
+            {state.message}
           </div>
         )}
       </div>
-
-      {/* Repository Configuration */}
-      <div style={{ marginBottom: '30px', padding: '20px', border: '1px solid #ddd', borderRadius: '8px' }}>
-        <h2 style={{ color: '#555', marginBottom: '15px' }}>Repository Configuration</h2>
-
-        <div style={{ marginBottom: '15px' }}>
-          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-            Repository Owner:
-          </label>
-          <input
-            type="text"
-            value={state.owner}
-            onChange={(e) => handleInputChange('owner', e.target.value)}
-            placeholder="GitHub username or organization"
-            style={{
-              width: '100%',
-              padding: '8px',
-              border: '1px solid #ccc',
-              borderRadius: '4px',
-              fontSize: '14px'
-            }}
-          />
-        </div>
-
-        <div style={{ marginBottom: '15px' }}>
-          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-            Repository Name:
-          </label>
-          <input
-            type="text"
-            value={state.repo}
-            onChange={(e) => handleInputChange('repo', e.target.value)}
-            placeholder="Repository name"
-            style={{
-              width: '100%',
-              padding: '8px',
-              border: '1px solid #ccc',
-              borderRadius: '4px',
-              fontSize: '14px'
-            }}
-          />
-        </div>
-
-        <div style={{ marginBottom: '15px' }}>
-          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-            Branch:
-          </label>
-          <input
-            type="text"
-            value={state.branch}
-            onChange={(e) => handleInputChange('branch', e.target.value)}
-            placeholder="main"
-            style={{
-              width: '100%',
-              padding: '8px',
-              border: '1px solid #ccc',
-              borderRadius: '4px',
-              fontSize: '14px'
-            }}
-          />
-        </div>
-
-        <div style={{ marginBottom: '15px' }}>
-          <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              checked={state.private}
-              onChange={(e) => handleInputChange('private', e.target.checked)}
-              style={{ marginRight: '8px' }}
-            />
-            Private Repository
-          </label>
-        </div>
-
-        <div style={{ marginBottom: '15px' }}>
-          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-            Folder Structure:
-          </label>
-          <select
-            value={state.folderStructure}
-            onChange={(e) => handleInputChange('folderStructure', e.target.value)}
-            style={{
-              width: '100%',
-              padding: '8px',
-              border: '1px solid #ccc',
-              borderRadius: '4px',
-              fontSize: '14px'
-            }}
-          >
-            <option value="topic">By Topic (Array, Hash Table, etc.)</option>
-            <option value="difficulty">By Difficulty (Easy, Medium, Hard)</option>
-            <option value="flat">Flat (All in root)</option>
-          </select>
-        </div>
-
-        <button
-          onClick={saveSettings}
-          style={{
-            padding: '10px 20px',
-            backgroundColor: '#28a745',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer'
-          }}
-        >
-          Save Settings
-        </button>
-      </div>
-
-      {/* Status Message */}
-      {state.message && (
-        <div
-          style={{
-            padding: '10px',
-            borderRadius: '4px',
-            backgroundColor: state.messageType === 'success' ? '#d4edda' : '#f8d7da',
-            color: state.messageType === 'success' ? '#155724' : '#721c24',
-            border: `1px solid ${state.messageType === 'success' ? '#c3e6cb' : '#f5c6cb'}`
-          }}
-        >
-          {state.message}
-        </div>
-      )}
     </div>
   );
 }
