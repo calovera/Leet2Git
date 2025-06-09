@@ -48,18 +48,18 @@ requiredFiles.forEach(file => {
 const assetsDir = path.join(distDir, 'assets');
 if (fs.existsSync(assetsDir)) {
   const files = fs.readdirSync(assetsDir);
-  const backgroundScript = files.find(f => f.includes('background.ts-'));
-  const contentScript = files.find(f => f.includes('content.ts-'));
+  const backgroundScript = files.find(f => f.includes('background.ts'));
+  const contentScript = files.find(f => f.includes('content.ts'));
   
   if (backgroundScript) {
-    console.log(`✅ background script compiled`);
+    console.log(`✅ background script compiled (${backgroundScript})`);
   } else {
     console.log(`❌ background script missing`);
     allFilesExist = false;
   }
   
   if (contentScript) {
-    console.log(`✅ content script compiled`);
+    console.log(`✅ content script compiled (${contentScript})`);
   } else {
     console.log(`❌ content script missing`);
     allFilesExist = false;
