@@ -276,18 +276,26 @@ const PushPanel = ({ pending, setPending }: {
   };
 
   return (
-    <div className="space-y-4">
+    <div style={{display: 'flex', flexDirection: 'column', gap: '16px'}}>
       {showToast && (
-        <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg transition-all duration-300 ${
-          showToast.type === 'success' 
-            ? 'bg-green-50 border border-green-200 text-green-800' 
-            : 'bg-red-50 border border-red-200 text-red-800'
-        }`}>
-          <div className="flex items-center">
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div style={{
+          position: 'fixed',
+          top: '16px',
+          right: '16px',
+          zIndex: '50',
+          padding: '16px',
+          borderRadius: '8px',
+          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+          transition: 'all 0.3s',
+          backgroundColor: showToast.type === 'success' ? '#f0fdf4' : '#fef2f2',
+          border: showToast.type === 'success' ? '1px solid #bbf7d0' : '1px solid #fecaca',
+          color: showToast.type === 'success' ? '#166534' : '#991b1b'
+        }}>
+          <div style={{display: 'flex', alignItems: 'center'}}>
+            <svg style={{width: '20px', height: '20px', marginRight: '8px'}} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
-            <span className="text-sm font-medium">{showToast.message}</span>
+            <span style={{fontSize: '14px', fontWeight: '500'}}>{showToast.message}</span>
           </div>
         </div>
       )}
@@ -295,15 +303,31 @@ const PushPanel = ({ pending, setPending }: {
       <button
         onClick={handlePush}
         disabled={isPushing || pending.length === 0}
-        className={`w-full px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-          isPushing || pending.length === 0
-            ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-            : 'bg-indigo-600 hover:bg-indigo-700 text-white hover:shadow-md'
-        }`}
+        style={{
+          width: '100%',
+          padding: '12px 16px',
+          fontSize: '14px',
+          fontWeight: '500',
+          borderRadius: '8px',
+          border: 'none',
+          cursor: isPushing || pending.length === 0 ? 'not-allowed' : 'pointer',
+          transition: 'all 0.2s',
+          backgroundColor: isPushing || pending.length === 0 ? '#f1f5f9' : '#4f46e5',
+          color: isPushing || pending.length === 0 ? '#94a3b8' : '#ffffff',
+          boxShadow: isPushing || pending.length === 0 ? 'none' : '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
+        }}
       >
         {isPushing ? (
-          <div className="flex items-center justify-center">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+          <div style={{display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+            <div style={{
+              width: '16px',
+              height: '16px',
+              border: '2px solid transparent',
+              borderTop: '2px solid #ffffff',
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite',
+              marginRight: '8px'
+            }}></div>
             Pushing to GitHub...
           </div>
         ) : (
@@ -311,39 +335,102 @@ const PushPanel = ({ pending, setPending }: {
         )}
       </button>
 
-      <div className="rounded-xl bg-white shadow-sm ring-1 ring-slate-200 overflow-hidden">
+      <div style={{
+        borderRadius: '12px',
+        backgroundColor: '#ffffff',
+        boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+        border: '1px solid #e2e8f0',
+        overflow: 'hidden'
+      }}>
         {pending.length === 0 ? (
-          <div className="p-8 text-center text-slate-500">
-            <svg className="w-12 h-12 mx-auto mb-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div style={{
+            padding: '32px',
+            textAlign: 'center',
+            color: '#64748b'
+          }}>
+            <svg style={{
+              width: '48px',
+              height: '48px',
+              margin: '0 auto 16px auto',
+              color: '#cbd5e1'
+            }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            <h3 className="text-sm font-medium text-slate-900 mb-1">No pending solutions</h3>
-            <p className="text-xs">Solutions you solve will appear here before pushing to GitHub</p>
+            <h3 style={{
+              fontSize: '14px',
+              fontWeight: '500',
+              color: '#0f172a',
+              marginBottom: '4px'
+            }}>No pending solutions</h3>
+            <p style={{fontSize: '12px'}}>Solutions you solve will appear here before pushing to GitHub</p>
           </div>
         ) : (
-          <div className="overflow-hidden">
-            <div className="px-4 py-3 bg-slate-50 border-b border-slate-200">
-              <h3 className="text-sm font-medium text-slate-900">Pending Solutions</h3>
+          <div style={{overflow: 'hidden'}}>
+            <div style={{
+              padding: '12px 16px',
+              backgroundColor: '#f8fafc',
+              borderBottom: '1px solid #e2e8f0'
+            }}>
+              <h3 style={{
+                fontSize: '14px',
+                fontWeight: '500',
+                color: '#0f172a'
+              }}>Pending Solutions</h3>
             </div>
-            <div className="max-h-64 overflow-y-auto">
+            <div style={{
+              maxHeight: '256px',
+              overflowY: 'auto'
+            }}>
               {pending.map((item) => (
-                <div key={item.id} className="flex items-center justify-between p-4 border-b border-slate-100 last:border-b-0 hover:bg-slate-50 transition-colors">
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-slate-900 truncate">
+                <div key={item.id} style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '16px',
+                  borderBottom: '1px solid #f1f5f9',
+                  transition: 'background-color 0.2s'
+                }}>
+                  <div style={{flex: '1', minWidth: '0'}}>
+                    <div style={{
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      color: '#0f172a',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap'
+                    }}>
                       {item.title}
                     </div>
-                    <div className="mt-1">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getLanguageColor(item.language)}`}>
+                    <div style={{marginTop: '4px'}}>
+                      <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                        fontWeight: '500',
+                        backgroundColor: '#3b82f6',
+                        color: '#ffffff'
+                      }}>
                         {item.language}
                       </span>
                     </div>
                   </div>
                   <button
                     onClick={() => removePendingItem(item.id)}
-                    className="ml-4 p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-red-500"
+                    style={{
+                      marginLeft: '16px',
+                      padding: '6px',
+                      color: '#94a3b8',
+                      backgroundColor: 'transparent',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
                     title="Remove from pending"
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg style={{width: '16px', height: '16px'}} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                     </svg>
                   </button>
@@ -391,8 +478,22 @@ export default function Popup() {
 
   if (loading) {
     return (
-      <div className="w-80 bg-white flex items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      <div style={{
+        width: '320px', 
+        backgroundColor: '#ffffff', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        height: '384px'
+      }}>
+        <div style={{
+          width: '32px',
+          height: '32px',
+          border: '2px solid #e2e8f0',
+          borderTop: '2px solid #4f46e5',
+          borderRadius: '50%',
+          animation: 'spin 1s linear infinite'
+        }}></div>
       </div>
     );
   }
@@ -436,37 +537,51 @@ export default function Popup() {
         </div>
       </div>
 
-      <div className="flex border-b border-slate-200">
+      <div style={{display: 'flex', borderBottom: '1px solid #e2e8f0'}}>
         <button
           onClick={() => setTab('home')}
-          className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
-            tab === 'home'
-              ? 'text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-          }`}
+          style={{
+            flex: '1',
+            padding: '12px 16px',
+            fontSize: '14px',
+            fontWeight: '500',
+            border: 'none',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+            backgroundColor: tab === 'home' ? '#eef2ff' : 'transparent',
+            color: tab === 'home' ? '#4f46e5' : '#64748b',
+            borderBottom: tab === 'home' ? '2px solid #4f46e5' : '2px solid transparent'
+          }}
         >
           Home
         </button>
         <button
           onClick={() => setTab('push')}
-          className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
-            tab === 'push'
-              ? 'text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-          }`}
+          style={{
+            flex: '1',
+            padding: '12px 16px',
+            fontSize: '14px',
+            fontWeight: '500',
+            border: 'none',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+            backgroundColor: tab === 'push' ? '#eef2ff' : 'transparent',
+            color: tab === 'push' ? '#4f46e5' : '#64748b',
+            borderBottom: tab === 'push' ? '2px solid #4f46e5' : '2px solid transparent'
+          }}
         >
           Push ({pending.length})
         </button>
       </div>
 
-      <div className="p-4">
+      <div style={{padding: '16px'}}>
         {tab === 'home' && (
-          <div className="animate-in">
+          <div>
             <HomeStats stats={stats} />
           </div>
         )}
         {tab === 'push' && (
-          <div className="animate-in">
+          <div>
             <PushPanel 
               pending={pending} 
               setPending={setPending}
