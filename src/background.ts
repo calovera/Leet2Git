@@ -1,10 +1,10 @@
 console.log("Leet2Git background script loaded");
 
 // Storage maps
-const tabData = new Map();
-const questionMetaStorage = new Map();
-const tempCodeStorage = new Map();
-const recentSubmissions = new Map();
+const tabData = new Map<number, any>();
+const questionMetaStorage = new Map<string, any>();
+const tempCodeStorage = new Map<string, any>();
+const recentSubmissions = new Map<string, number>();
 
 // Helper functions
 function cacheQuestionMeta(meta) {
@@ -112,38 +112,62 @@ chrome.webRequest.onResponseStarted.addListener(async (details) => {
   const submissionId = urlMatch[1];
   console.log(`[Leet2Git] Intercepted submission check: ${submissionId}`);
   
-  // Inject content script to get submission data instead of fetching directly
-  try {
-    await chrome.scripting.executeScript({
-      target: { tabId: details.tabId },
-      func: async (submissionId) => {
-        try {
-          // Check for accepted status in DOM or make request from content context
-          const response = await fetch(window.location.href);
-          const text = await response.text();
-          
-          if (text.includes('"status_msg":"Accepted"') || text.includes('Accepted')) {
-            // Extract data and send to background
-            chrome.runtime.sendMessage({
-              type: 'submission_accepted',
-              submissionId: submissionId,
-              tabId: details.tabId
-            });
-          }
-        } catch (error) {
-          console.error('Error in content script:', error);
+  // Use a delayed check approach to verify acceptance
+  setTimeout(async () => {
+    try {
+      // Only process if we have captured code recently
+      let hasRecentCode = false;
+      for (const [qId, record] of tempCodeStorage.entries()) {
+        if (record.timestamp > Date.now() - 60000) { // Within last minute
+          hasRecentCode = true;
+          break;
         }
-      },
-      args: [submissionId]
-    });
-  } catch (error) {
-    console.error(`[Leet2Git] Error injecting script:`, error);
-    
-    // Fallback: simulate accepted submission for captured code
-    setTimeout(async () => {
-      await processAcceptedSubmission(submissionId, details.tabId);
-    }, 1000);
-  }
+      }
+      
+      if (hasRecentCode) {
+        // Try to inject script to check acceptance status
+        try {
+          const results = await chrome.scripting.executeScript({
+            target: { tabId: details.tabId },
+            func: () => {
+              // Check DOM for acceptance indicators
+              const bodyText = document.body.innerText || document.body.textContent || '';
+              const statusElements = document.querySelectorAll('[data-cy="submission-result"], .text-green-s, .text-success');
+              
+              let isAccepted = false;
+              
+              // Check for "Accepted" text in various places
+              if (bodyText.includes('Accepted') && !bodyText.includes('Wrong Answer') && !bodyText.includes('Time Limit Exceeded')) {
+                isAccepted = true;
+              }
+              
+              // Check status elements
+              for (const element of statusElements) {
+                const text = element.textContent || (element as any).innerText || '';
+                if (text.includes('Accepted')) {
+                  isAccepted = true;
+                  break;
+                }
+              }
+              
+              return { isAccepted, bodyText: bodyText.substring(0, 200) };
+            }
+          });
+          
+          if (results && results[0] && results[0].result && results[0].result.isAccepted) {
+            console.log(`[Leet2Git] Submission ${submissionId} confirmed accepted`);
+            await processAcceptedSubmission(submissionId, details.tabId);
+          } else {
+            console.log(`[Leet2Git] Submission ${submissionId} not accepted or still processing`);
+          }
+        } catch (scriptError) {
+          console.log(`[Leet2Git] Could not inject script, skipping submission ${submissionId}:`, scriptError.message);
+        }
+      }
+    } catch (error) {
+      console.error(`[Leet2Git] Error in delayed check:`, error);
+    }
+  }, 2000); // Wait 2 seconds for page to update
 }, { urls: ["https://leetcode.com/submissions/detail/*/check/"] });
 
 async function processAcceptedSubmission(submissionId, tabId) {

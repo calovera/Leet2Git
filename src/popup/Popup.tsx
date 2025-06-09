@@ -227,6 +227,21 @@ const PushSection = ({ pending, auth, setHomeData, fetchData }: {
     setExpandedItems(newExpanded);
   };
 
+  const handleDeleteSubmission = async (itemId: string) => {
+    try {
+      // Get current pending solutions and remove the selected one
+      const updatedPending = pending.filter(item => (item.id || `${pending.indexOf(item)}`) !== itemId);
+      
+      // Update storage
+      await chrome.storage.sync.set({ pending: updatedPending });
+      
+      // Refresh data to update UI
+      fetchData();
+    } catch (error) {
+      console.error('Error deleting submission:', error);
+    }
+  };
+
   const handleSync = async () => {
     if (!auth || !auth.connected) {
       setPushStatus('Please connect to GitHub first in Settings tab');
@@ -365,21 +380,37 @@ const PushSection = ({ pending, auth, setHomeData, fetchData }: {
                       </span>
                     </div>
                   </div>
-                  <button
-                    onClick={() => toggleCodePreview(item.id || `${index}`)}
-                    style={{
-                      background: 'rgba(139, 92, 246, 0.3)',
-                      color: '#ffffff',
-                      border: 'none',
-                      borderRadius: '4px',
-                      padding: '4px 8px',
-                      fontSize: '10px',
-                      cursor: 'pointer',
-                      marginLeft: '8px'
-                    }}
-                  >
-                    {expandedItems.has(item.id || `${index}`) ? 'Hide' : 'Code'}
-                  </button>
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    <button
+                      onClick={() => toggleCodePreview(item.id || `${index}`)}
+                      style={{
+                        background: 'rgba(139, 92, 246, 0.3)',
+                        color: '#ffffff',
+                        border: 'none',
+                        borderRadius: '4px',
+                        padding: '4px 8px',
+                        fontSize: '10px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {expandedItems.has(item.id || `${index}`) ? 'Hide' : 'Code'}
+                    </button>
+                    <button
+                      onClick={() => handleDeleteSubmission(item.id || `${index}`)}
+                      style={{
+                        background: 'rgba(239, 68, 68, 0.3)',
+                        color: '#ffffff',
+                        border: 'none',
+                        borderRadius: '4px',
+                        padding: '4px 8px',
+                        fontSize: '10px',
+                        cursor: 'pointer'
+                      }}
+                      title="Delete this submission"
+                    >
+                      ✕
+                    </button>
+                  </div>
                 </div>
                 {expandedItems.has(item.id || `${index}`) && (
                   <div style={{
