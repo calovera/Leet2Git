@@ -255,31 +255,89 @@ export default function Options() {
                 outline: "none",
               }}
             />
+            <div style={{ marginTop: "8px" }}>
+              <a
+                href="https://github.com/settings/tokens/new?scopes=repo,user&description=Leet2Git"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  color: "#a5b4fc",
+                  fontSize: "13px",
+                  textDecoration: "underline",
+                }}
+              >
+                Generate a GitHub Access Token
+              </a>
+            </div>
           </div>
 
-          <button
-            onClick={verifyToken}
-            disabled={state.loading || !state.token}
+          <div
             style={{
-              padding: "12px 24px",
-              backgroundColor: state.connected ? "#10b981" : "#3b82f6",
-              color: "#ffffff",
-              border: "none",
-              borderRadius: "8px",
-              fontSize: "14px",
-              fontWeight: "600",
-              cursor: state.loading || !state.token ? "not-allowed" : "pointer",
-              opacity: state.loading || !state.token ? 0.6 : 1,
-              transition: "all 0.2s",
-              boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
+              display: "flex",
+              gap: "12px",
+              alignItems: "center",
+              marginBottom: "8px",
             }}
           >
-            {state.loading
-              ? "Verifying..."
-              : state.connected
-              ? "Connected"
-              : "Verify Token"}
-          </button>
+            <button
+              onClick={verifyToken}
+              disabled={state.loading || !state.token}
+              style={{
+                padding: "12px 24px",
+                backgroundColor: state.connected ? "#10b981" : "#3b82f6",
+                color: "#ffffff",
+                border: "none",
+                borderRadius: "8px",
+                fontSize: "14px",
+                fontWeight: "600",
+                cursor:
+                  state.loading || !state.token ? "not-allowed" : "pointer",
+                opacity: state.loading || !state.token ? 0.6 : 1,
+                transition: "all 0.2s",
+                boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
+              }}
+            >
+              {state.loading
+                ? "Verifying..."
+                : state.connected
+                ? "Connected"
+                : "Verify Token"}
+            </button>
+            <button
+              onClick={async () => {
+                await chrome.storage.sync.remove([
+                  "github_token",
+                  "github_user",
+                  "auth",
+                ]);
+                setState((prev) => ({
+                  ...prev,
+                  token: "",
+                  username: "",
+                  email: "",
+                  connected: false,
+                }));
+                showStatus("Token removed.", true);
+              }}
+              disabled={state.loading || !state.token}
+              style={{
+                padding: "12px 24px",
+                backgroundColor: "#ef4444",
+                color: "#fff",
+                border: "none",
+                borderRadius: "8px",
+                fontSize: "14px",
+                fontWeight: "600",
+                cursor:
+                  state.loading || !state.token ? "not-allowed" : "pointer",
+                opacity: state.loading || !state.token ? 0.6 : 1,
+                transition: "all 0.2s",
+                boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
+              }}
+            >
+              Remove Token
+            </button>
+          </div>
 
           {state.connected && (
             <div
