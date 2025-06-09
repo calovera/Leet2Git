@@ -215,7 +215,8 @@ const HomeStats = ({ stats }: { stats: Stats }) => {
                   </div>
                 </div>
               </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
