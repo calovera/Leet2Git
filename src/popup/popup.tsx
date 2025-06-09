@@ -108,6 +108,15 @@ const Popup: React.FC = () => {
     }));
   };
 
+  const openSettings = () => {
+    // For demo purposes, just show an alert
+    alert('Settings page would open here');
+  };
+
+  const openGitHubAuth = () => {
+    connectGitHub();
+  };
+
   if (state.isLoading) {
     return (
       <div className="w-80 bg-white p-8 flex items-center justify-center">
