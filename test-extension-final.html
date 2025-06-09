@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leet2Git Extension Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .test-section {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #6c757d; cursor: not-allowed; }
+        .install-guide {
+            background: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 30px;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .code {
+            font-family: 'Monaco', 'Consolas', monospace;
+            background: #f1f3f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Leet2Git Chrome Extension Test Suite</h1>
+    <p>This page tests the production readiness of the Leet2Git Chrome Extension.</p>
+
+    <div class="test-section">
+        <h2>📦 Extension Installation Status</h2>
+        <div id="installStatus" class="status warning">Click "Test Extension" to check installation</div>
+        <button onclick="testExtensionInstall()">Test Extension</button>
+    </div>
+
+    <div class="test-section">
+        <h2>📡 Background Script Communication</h2>
+        <div id="backgroundStatus" class="status warning">Waiting for test...</div>
+        <button onclick="testBackground()" id="testBackgroundBtn">Test Background Script</button>
+    </div>
+
+    <div class="test-section">
+        <h2>💾 Storage Operations</h2>
+        <div id="storageStatus" class="status warning">Waiting for test...</div>
+        <button onclick="testStorage()" id="testStorageBtn">Test Storage</button>
+    </div>
+
+    <div class="test-section">
+        <h2>⚙️ Options Page</h2>
+        <div id="optionsStatus" class="status warning">Waiting for test...</div>
+        <button onclick="testOptions()" id="testOptionsBtn">Test Options Page</button>
+    </div>
+
+    <div class="test-section">
+        <h2>🚀 Push Functionality</h2>
+        <div id="pushStatus" class="status warning">Waiting for test...</div>
+        <button onclick="testPush()" id="testPushBtn">Test Push Validation</button>
+    </div>
+
+    <div class="install-guide">
+        <h2>📋 Installation Guide</h2>
+        <ol>
+            <li>Open Chrome and navigate to <span class="code">chrome://extensions/</span></li>
+            <li>Enable "Developer mode" toggle in the top right</li>
+            <li>Click "Load unpacked" button</li>
+            <li>Select the <span class="code">dist-extension/</span> folder from this project</li>
+            <li>The extension should appear in your extensions list</li>
+            <li>Click the extension icon in the toolbar to open the popup</li>
+            <li>Click the settings gear icon to open the options page</li>
+        </ol>
+
+        <h3>🔑 Required Setup</h3>
+        <ul>
+            <li><strong>GitHub Personal Access Token:</strong> Create one at <a href="https://github.com/settings/tokens" target="_blank">GitHub Settings → Personal Access Tokens</a></li>
+            <li><strong>Token Permissions:</strong> Must have <span class="code">repo</span> scope for repository access</li>
+            <li><strong>Repository Configuration:</strong> Set owner/username and repository name in options</li>
+        </ul>
+
+        <h3>✨ How It Works</h3>
+        <ul>
+            <li><strong>Automatic Detection:</strong> Intercepts LeetCode API calls when you submit solutions</li>
+            <li><strong>Fallback Capture:</strong> DOM-based detection as backup method</li>
+            <li><strong>GitHub Sync:</strong> Automatically pushes solutions to your configured repository</li>
+            <li><strong>Statistics:</strong> Tracks streak, difficulty counts, and recent solves</li>
+            <li><strong>Badge Notifications:</strong> Shows pending solution count in extension badge</li>
+        </ul>
+    </div>
+
+    <div id="testResults" style="margin-top: 30px;"></div>
+
+    <script>
+        let testResults = [];
+
+        function updateStatus(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `status ${type}`;
+        }
+
+        function testExtensionInstall() {
+            if (typeof chrome !== 'undefined' && chrome.runtime) {
+                updateStatus('installStatus', '✅ Extension is installed and Chrome APIs are available', 'success');
+                testResults.push({ test: 'Extension Installation', status: 'PASS' });
+                
+                // Enable other test buttons
+                document.getElementById('testBackgroundBtn').disabled = false;
+                document.getElementById('testStorageBtn').disabled = false;
+                document.getElementById('testOptionsBtn').disabled = false;
+                document.getElementById('testPushBtn').disabled = false;
+            } else {
+                updateStatus('installStatus', '❌ Extension not installed or Chrome APIs not available', 'error');
+                testResults.push({ test: 'Extension Installation', status: 'FAIL' });
+            }
+        }
+
+        function testBackground() {
+            updateStatus('backgroundStatus', '🔄 Testing background script...', 'warning');
+            
+            chrome.runtime.sendMessage({ type: 'getHomeData' }, (response) => {
+                if (chrome.runtime.lastError) {
+                    updateStatus('backgroundStatus', `❌ Background script error: ${chrome.runtime.lastError.message}`, 'error');
+                    testResults.push({ test: 'Background Script', status: 'FAIL' });
+                } else if (response) {
+                    updateStatus('backgroundStatus', '✅ Background script is responding', 'success');
+                    testResults.push({ test: 'Background Script', status: 'PASS' });
+                } else {
+                    updateStatus('backgroundStatus', '❌ No response from background script', 'error');
+                    testResults.push({ test: 'Background Script', status: 'FAIL' });
+                }
+            });
+        }
+
+        function testStorage() {
+            updateStatus('storageStatus', '🔄 Testing storage operations...', 'warning');
+            
+            const testData = {
+                test_timestamp: Date.now(),
+                test_data: { hello: 'world' }
+            };
+
+            chrome.storage.sync.set(testData, () => {
+                if (chrome.runtime.lastError) {
+                    updateStatus('storageStatus', `❌ Storage write error: ${chrome.runtime.lastError.message}`, 'error');
+                    testResults.push({ test: 'Storage Operations', status: 'FAIL' });
+                    return;
+                }
+
+                chrome.storage.sync.get(['test_timestamp', 'test_data'], (result) => {
+                    if (chrome.runtime.lastError) {
+                        updateStatus('storageStatus', `❌ Storage read error: ${chrome.runtime.lastError.message}`, 'error');
+                        testResults.push({ test: 'Storage Operations', status: 'FAIL' });
+                    } else if (result.test_timestamp === testData.test_timestamp) {
+                        updateStatus('storageStatus', '✅ Storage operations working correctly', 'success');
+                        testResults.push({ test: 'Storage Operations', status: 'PASS' });
+                        
+                        // Clean up test data
+                        chrome.storage.sync.remove(['test_timestamp', 'test_data']);
+                    } else {
+                        updateStatus('storageStatus', '❌ Storage data mismatch', 'error');
+                        testResults.push({ test: 'Storage Operations', status: 'FAIL' });
+                    }
+                });
+            });
+        }
+
+        function testOptions() {
+            updateStatus('optionsStatus', '🔄 Testing options page...', 'warning');
+            
+            try {
+                chrome.runtime.openOptionsPage();
+                updateStatus('optionsStatus', '✅ Options page opened successfully', 'success');
+                testResults.push({ test: 'Options Page', status: 'PASS' });
+            } catch (error) {
+                updateStatus('optionsStatus', `❌ Options page error: ${error.message}`, 'error');
+                testResults.push({ test: 'Options Page', status: 'FAIL' });
+            }
+        }
+
+        function testPush() {
+            updateStatus('pushStatus', '🔄 Testing push validation...', 'warning');
+            
+            chrome.runtime.sendMessage({ type: 'push' }, (response) => {
+                if (chrome.runtime.lastError) {
+                    updateStatus('pushStatus', `❌ Push test error: ${chrome.runtime.lastError.message}`, 'error');
+                    testResults.push({ test: 'Push Validation', status: 'FAIL' });
+                } else if (response && (response.error?.includes('GitHub') || response.error?.includes('Repository'))) {
+                    updateStatus('pushStatus', '✅ Push validation working (requires GitHub setup)', 'success');
+                    testResults.push({ test: 'Push Validation', status: 'PASS' });
+                } else if (response && response.success) {
+                    updateStatus('pushStatus', '✅ Push completed successfully', 'success');
+                    testResults.push({ test: 'Push Validation', status: 'PASS' });
+                } else {
+                    updateStatus('pushStatus', '❌ Unexpected push response', 'error');
+                    testResults.push({ test: 'Push Validation', status: 'FAIL' });
+                }
+            });
+        }
+
+        function generateReport() {
+            const passed = testResults.filter(r => r.status === 'PASS').length;
+            const failed = testResults.filter(r => r.status === 'FAIL').length;
+            
+            let report = `<div class="test-section"><h2>📊 Test Report</h2>`;
+            report += `<p><strong>Tests Run:</strong> ${testResults.length}</p>`;
+            report += `<p><strong>Passed:</strong> ${passed}</p>`;
+            report += `<p><strong>Failed:</strong> ${failed}</p>`;
+            
+            if (failed === 0 && testResults.length > 0) {
+                report += `<div class="status success">🎉 All tests passed! Extension is production ready.</div>`;
+            } else if (failed > 0) {
+                report += `<div class="status error">⚠️ Some tests failed. Check the issues above.</div>`;
+            }
+            
+            report += `</div>`;
+            document.getElementById('testResults').innerHTML = report;
+        }
+
+        // Auto-generate report when tests complete
+        setInterval(() => {
+            if (testResults.length > 0) {
+                generateReport();
+            }
+        }, 1000);
+
+        // Initialize
+        document.getElementById('testBackgroundBtn').disabled = true;
+        document.getElementById('testStorageBtn').disabled = true;
+        document.getElementById('testOptionsBtn').disabled = true;
+        document.getElementById('testPushBtn').disabled = true;
+    </script>
+</body>
+</html>
