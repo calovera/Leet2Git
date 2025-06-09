@@ -129,15 +129,44 @@ class LeetCodeDetector {
 
   extractSolutionData() {
     try {
-      // Extract title
-      const titleElement = document.querySelector('[data-cy="question-title"]') ||
-                          document.querySelector('h1[class*="title"]') ||
-                          document.querySelector('.css-v3d350') ||
-                          document.querySelector('h1');
+      // Extract title with more comprehensive selectors
+      const titleSelectors = [
+        '[data-cy="question-title"]',
+        'h1[class*="title"]',
+        '.css-v3d350',
+        'h1',
+        '[class*="question-title"]',
+        'div[data-track-load="question_title"]',
+        '.question-title',
+        'h1[data-cy="question-title"]'
+      ];
       
-      const title = titleElement?.textContent?.trim();
+      let titleElement = null;
+      let title = '';
+      
+      for (const selector of titleSelectors) {
+        titleElement = document.querySelector(selector);
+        if (titleElement) {
+          title = titleElement.textContent?.trim();
+          if (title && title.length > 0 && !title.includes('LeetCode') && !title.includes('Sign in')) {
+            break;
+          }
+        }
+      }
+      
+      // Fallback: extract from URL if no title found
       if (!title) {
-        console.error("Could not extract problem title");
+        const pathMatch = window.location.pathname.match(/\/problems\/([^\/]+)/);
+        if (pathMatch) {
+          title = pathMatch[1].split('-').map(word => 
+            word.charAt(0).toUpperCase() + word.slice(1)
+          ).join(' ');
+        }
+      }
+      
+      if (!title) {
+        console.error("Could not extract problem title from any selector");
+        console.log("Available h1 elements:", Array.from(document.querySelectorAll('h1')).map(h => h.textContent?.trim()));
         return null;
       }
 
@@ -195,26 +224,50 @@ class LeetCodeDetector {
   }
 
   extractCodeFromEditor() {
-    // Try different editor types
+    // Try Monaco editor API first
+    try {
+      if (window.monaco && window.monaco.editor) {
+        const models = window.monaco.editor.getModels();
+        if (models.length > 0) {
+          const code = models[0].getValue();
+          if (code && code.trim().length > 0) {
+            return code;
+          }
+        }
+      }
+    } catch (e) {
+      console.log("Could not access Monaco API");
+    }
+
+    // Try different editor DOM selectors
     const editorSelectors = [
       '.monaco-editor .view-lines',
-      '.CodeMirror-code',
+      '.CodeMirror-code', 
       '[data-mode-id] .view-lines',
       '.ace_content',
-      'textarea[data-cy="code-editor"]'
+      'textarea[data-cy="code-editor"]',
+      '#editor textarea',
+      '.editor-container textarea',
+      '[class*="editor"] textarea'
     ];
 
     for (const selector of editorSelectors) {
       const editor = document.querySelector(selector);
       if (editor) {
         if (editor.classList.contains('view-lines')) {
-          // Monaco editor
+          // Monaco editor DOM
           const lines = editor.querySelectorAll('.view-line');
-          return Array.from(lines).map(line => line.textContent || "").join('\n');
+          if (lines.length > 0) {
+            const code = Array.from(lines).map(line => line.textContent || "").join('\n');
+            if (code.trim().length > 0) return code;
+          }
         } else if (editor.tagName === 'TEXTAREA') {
-          return editor.value;
+          if (editor.value && editor.value.trim().length > 0) {
+            return editor.value;
+          }
         } else {
-          return editor.textContent || "";
+          const text = editor.textContent || "";
+          if (text.trim().length > 0) return text;
         }
       }
     }

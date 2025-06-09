@@ -4,33 +4,26 @@
   "version": "1.0.0",
   "description": "Sync LeetCode solutions to GitHub repositories automatically",
   "icons": {
-    "16": "icons/16.png",
-    "32": "icons/32.png",
-    "128": "icons/128.png"
+    "16": "16.png",
+    "32": "32.png", 
+    "128": "128.png"
   },
   "background": {
-    "service_worker": "service-worker-loader.js",
-    "type": "module"
+    "service_worker": "background.js"
   },
   "action": {
-    "default_popup": "src/popup/index.html",
+    "default_popup": "popup.html",
     "default_title": "Leet2Git - Sync LeetCode to GitHub"
   },
-  "options_page": "src/options/index.html",
+  "options_page": "options.html",
   "content_scripts": [
     {
-      "js": [
-        "assets/content.ts-loader.js",
-        "assets/leetcode-hook.ts-loader.js"
-      ],
-      "matches": [
-        "https://leetcode.com/*"
-      ],
+      "js": ["content.js"],
+      "matches": ["https://leetcode.com/*"],
       "run_at": "document_end"
     }
   ],
   "permissions": [
-    "identity",
     "storage",
     "activeTab",
     "tabs",
@@ -41,17 +34,5 @@
     "https://github.com/*",
     "https://api.github.com/*",
     "https://leetcode.com/*"
-  ],
-  "web_accessible_resources": [
-    {
-      "matches": [
-        "https://leetcode.com/*"
-      ],
-      "resources": [
-        "content.js",
-        "leetcode-hook.js"
-      ],
-      "use_dynamic_url": true
-    }
   ]
 }
