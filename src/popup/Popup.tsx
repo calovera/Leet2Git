@@ -22,6 +22,7 @@ interface PendingItem {
   timestamp: number;
   description?: string;
   submissionId: string;
+  tag: string;
 }
 
 interface GitHubAuth {
@@ -108,33 +109,7 @@ const HomeSection = ({ stats }: { stats: Stats }) => {
         </div>
       </div>
 
-      {/* Difficulty Cards */}
-      <div style={{ display: 'flex', gap: '8px' }}>
-        {[
-          { label: 'Easy', count: stats.counts.easy, color: '#10b981' },
-          { label: 'Medium', count: stats.counts.medium, color: '#f59e0b' },
-          { label: 'Hard', count: stats.counts.hard, color: '#ef4444' }
-        ].map(({ label, count, color }) => (
-          <div key={label} style={{
-            flex: 1,
-            background: 'rgba(255, 255, 255, 0.08)',
-            backdropFilter: 'blur(12px)',
-            borderRadius: '10px',
-            padding: '12px',
-            border: '1px solid rgba(255, 255, 255, 0.12)',
-            textAlign: 'center'
-          }}>
-            <div style={{ fontSize: '18px', fontWeight: 'bold', color: color, marginBottom: '2px' }}>
-              {count}
-            </div>
-            <div style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.7)' }}>
-              {label}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Recent Solves */}
+      {/* Difficulty Breakdown */}
       <div style={{
         background: 'rgba(255, 255, 255, 0.08)',
         backdropFilter: 'blur(12px)',
@@ -142,60 +117,77 @@ const HomeSection = ({ stats }: { stats: Stats }) => {
         padding: '16px',
         border: '1px solid rgba(255, 255, 255, 0.12)'
       }}>
-        <div style={{ fontSize: '14px', fontWeight: '600', color: '#ffffff', marginBottom: '12px' }}>
-          Recent Solves
+        <div style={{ fontSize: '14px', fontWeight: '500', color: '#ffffff', marginBottom: '12px' }}>
+          Problem Breakdown
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#10b981' }}>
+              {stats.counts.easy}
+            </div>
+            <div style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.7)' }}>Easy</div>
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#f59e0b' }}>
+              {stats.counts.medium}
+            </div>
+            <div style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.7)' }}>Medium</div>
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#ef4444' }}>
+              {stats.counts.hard}
+            </div>
+            <div style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.7)' }}>Hard</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Recent Activity */}
+      <div style={{
+        background: 'rgba(255, 255, 255, 0.08)',
+        backdropFilter: 'blur(12px)',
+        borderRadius: '12px',
+        padding: '16px',
+        border: '1px solid rgba(255, 255, 255, 0.12)'
+      }}>
+        <div style={{ fontSize: '14px', fontWeight: '500', color: '#ffffff', marginBottom: '12px' }}>
+          Recent Activity
         </div>
         {stats.recentSolves.length === 0 ? (
-          <div style={{
-            textAlign: 'center',
-            padding: '20px',
-            color: 'rgba(255, 255, 255, 0.6)',
-            fontSize: '13px'
+          <div style={{ 
+            textAlign: 'center', 
+            color: 'rgba(255, 255, 255, 0.6)', 
+            fontSize: '12px',
+            padding: '8px 0'
           }}>
-            <div style={{ marginBottom: '8px', fontSize: '20px' }}>🎯</div>
-            <div>No recent solutions yet</div>
-            <div>Start solving problems on LeetCode!</div>
+            No recent activity
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '120px', overflowY: 'auto' }}>
             {stats.recentSolves.slice(0, 3).map((solve, index) => (
               <div key={index} style={{
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                padding: '10px 12px',
-                background: 'rgba(255, 255, 255, 0.05)',
-                borderRadius: '8px',
-                border: '1px solid rgba(255, 255, 255, 0.08)'
+                padding: '6px 0'
               }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  <div style={{ fontSize: '13px', fontWeight: '500', color: '#ffffff' }}>
+                  <div style={{ fontSize: '12px', fontWeight: '500', color: '#ffffff' }}>
                     {solve.title}
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span style={{
-                      fontSize: '10px',
-                      padding: '2px 6px',
-                      borderRadius: '4px',
-                      background: solve.difficulty === 'Easy' ? '#10b981' : 
-                                solve.difficulty === 'Medium' ? '#f59e0b' : '#ef4444',
-                      color: '#ffffff',
-                      fontWeight: '500'
-                    }}>
-                      {solve.difficulty}
-                    </span>
-                    <span style={{ 
-                      fontSize: '11px', 
-                      color: 'rgba(255, 255, 255, 0.7)',
-                      background: `${getLanguageColor(solve.language)}20`,
-                      padding: '1px 4px',
-                      borderRadius: '3px'
-                    }}>
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      background: getLanguageColor(solve.language)
+                    }} />
+                    <span style={{ fontSize: '10px', color: 'rgba(255, 255, 255, 0.7)' }}>
                       {solve.language}
                     </span>
                   </div>
                 </div>
-                <div style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.5)' }}>
+                <div style={{ fontSize: '10px', color: 'rgba(255, 255, 255, 0.5)' }}>
                   {formatTimeAgo(solve.timestamp)}
                 </div>
               </div>
@@ -207,83 +199,49 @@ const HomeSection = ({ stats }: { stats: Stats }) => {
   );
 };
 
-const PushSection = ({ pending, auth }: { pending: PendingItem[], auth: GitHubAuth | null }) => {
+const PushSection = ({ pending, onRefresh }: { pending: PendingItem[], onRefresh: () => void }) => {
   const [isPushing, setIsPushing] = useState(false);
-  const [pushStatus, setPushStatus] = useState<string>('');
+  const [pushStatus, setPushStatus] = useState('');
+  const [expandedCode, setExpandedCode] = useState<string | null>(null);
 
-  const handleSync = async () => {
-    if (!auth || !auth.connected) {
-      setPushStatus('Please connect to GitHub first in Settings tab');
-      setTimeout(() => setPushStatus(''), 3000);
+  const handlePush = async () => {
+    if (pending.length === 0) {
+      setPushStatus('No pending solutions to push');
       return;
     }
 
     setIsPushing(true);
-    setPushStatus('Syncing solutions to GitHub...');
-    
+    setPushStatus('Syncing with GitHub...');
+
     try {
       const response = await new Promise<any>((resolve) => {
         chrome.runtime.sendMessage({ type: 'push' }, resolve);
       });
-      
+
       if (response.success) {
-        setPushStatus(`Successfully synced ${response.count || 0} solutions!`);
+        setPushStatus(`✓ Successfully pushed ${response.count} solution(s)`);
+        // Refresh the data immediately after successful push
+        setTimeout(() => {
+          onRefresh();
+          setPushStatus('');
+        }, 2000);
       } else {
-        setPushStatus(`Error: ${response.error || 'Unknown error occurred'}`);
+        setPushStatus(`✗ ${response.error || 'Failed to push solutions'}`);
       }
     } catch (error) {
-      setPushStatus('Error: Failed to sync solutions');
+      setPushStatus('✗ Failed to sync with GitHub');
     }
-    
+
     setIsPushing(false);
-    setTimeout(() => setPushStatus(''), 3000);
   };
 
-  const isDisabled = isPushing || !auth?.connected;
+  const toggleCodePreview = (itemId: string) => {
+    setExpandedCode(expandedCode === itemId ? null : itemId);
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      {/* Sync Button */}
-      <button
-        onClick={handleSync}
-        disabled={isDisabled}
-        style={{
-          background: isDisabled 
-            ? 'rgba(255, 255, 255, 0.08)' 
-            : 'rgba(139, 92, 246, 0.9)',
-          color: isDisabled ? 'rgba(255, 255, 255, 0.5)' : '#ffffff',
-          border: 'none',
-          borderRadius: '12px',
-          padding: '16px 24px',
-          fontSize: '14px',
-          fontWeight: '600',
-          cursor: isDisabled ? 'not-allowed' : 'pointer',
-          transition: 'all 0.2s ease',
-          opacity: isDisabled ? 0.6 : 1,
-          backdropFilter: 'blur(12px)',
-          boxShadow: isDisabled ? 'none' : '0 4px 16px rgba(139, 92, 246, 0.3)'
-        }}
-      >
-        {isPushing ? 'Syncing...' : !auth?.connected ? 'Connect GitHub First' : 'Sync to GitHub'}
-      </button>
-
-      {/* Status Message */}
-      {pushStatus && (
-        <div style={{
-          background: 'rgba(255, 255, 255, 0.08)',
-          backdropFilter: 'blur(12px)',
-          borderRadius: '8px',
-          padding: '12px',
-          border: '1px solid rgba(255, 255, 255, 0.12)',
-          fontSize: '13px',
-          color: '#ffffff',
-          textAlign: 'center'
-        }}>
-          {pushStatus}
-        </div>
-      )}
-
-      {/* Pending Solutions */}
+      {/* Header with Push Button */}
       <div style={{
         background: 'rgba(255, 255, 255, 0.08)',
         backdropFilter: 'blur(12px)',
@@ -291,10 +249,48 @@ const PushSection = ({ pending, auth }: { pending: PendingItem[], auth: GitHubAu
         padding: '16px',
         border: '1px solid rgba(255, 255, 255, 0.12)'
       }}>
-        <div style={{ fontSize: '14px', fontWeight: '600', color: '#ffffff', marginBottom: '12px' }}>
-          Pending Solutions ({pending.length})
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+          <div style={{ fontSize: '14px', fontWeight: '500', color: '#ffffff' }}>
+            Pending Solutions ({pending.length})
+          </div>
+          <button
+            onClick={handlePush}
+            disabled={isPushing || pending.length === 0}
+            style={{
+              background: pending.length === 0 ? 'rgba(255, 255, 255, 0.1)' : 'linear-gradient(135deg, #3B82F6 0%, #1E40AF 100%)',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '8px 16px',
+              fontSize: '12px',
+              fontWeight: '500',
+              cursor: pending.length === 0 ? 'not-allowed' : 'pointer',
+              opacity: isPushing ? 0.7 : 1
+            }}
+          >
+            {isPushing ? 'Syncing...' : 'Push to GitHub'}
+          </button>
         </div>
         
+        {pushStatus && (
+          <div style={{
+            fontSize: '12px',
+            color: pushStatus.startsWith('✓') ? '#10b981' : pushStatus.startsWith('✗') ? '#ef4444' : 'rgba(255, 255, 255, 0.7)',
+            marginTop: '8px'
+          }}>
+            {pushStatus}
+          </div>
+        )}
+      </div>
+
+      {/* Pending Solutions List */}
+      <div style={{
+        background: 'rgba(255, 255, 255, 0.08)',
+        backdropFilter: 'blur(12px)',
+        borderRadius: '12px',
+        padding: '16px',
+        border: '1px solid rgba(255, 255, 255, 0.12)'
+      }}>
         {pending.length === 0 ? (
           <div style={{
             textAlign: 'center',
@@ -307,44 +303,98 @@ const PushSection = ({ pending, auth }: { pending: PendingItem[], auth: GitHubAu
             <div>No pending solutions to sync</div>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '200px', overflowY: 'auto' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '300px', overflowY: 'auto' }}>
             {pending.map((item, index) => (
               <div key={index} style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: '8px 12px',
                 background: 'rgba(255, 255, 255, 0.05)',
                 borderRadius: '8px',
-                border: '1px solid rgba(255, 255, 255, 0.08)'
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                overflow: 'hidden'
               }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  <div style={{ fontSize: '13px', fontWeight: '500', color: '#ffffff' }}>
-                    {item.title}
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '12px'
+                }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
+                    <div style={{ fontSize: '13px', fontWeight: '500', color: '#ffffff' }}>
+                      {item.title}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{
+                        fontSize: '10px',
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        background: item.difficulty === 'Easy' ? '#10b981' : 
+                                  item.difficulty === 'Medium' ? '#f59e0b' : '#ef4444',
+                        color: '#ffffff',
+                        fontWeight: '500'
+                      }}>
+                        {item.difficulty}
+                      </span>
+                      <span style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.7)' }}>
+                        {item.language}
+                      </span>
+                      <span style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.5)' }}>
+                        {item.tag}
+                      </span>
+                    </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{
-                      fontSize: '10px',
-                      padding: '2px 6px',
-                      borderRadius: '4px',
-                      background: item.difficulty === 'Easy' ? '#10b981' : 
-                                item.difficulty === 'Medium' ? '#f59e0b' : '#ef4444',
-                      color: '#ffffff',
-                      fontWeight: '500'
-                    }}>
-                      {item.difficulty}
-                    </span>
-                    <span style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.7)' }}>
-                      {item.language}
-                    </span>
+                    <button
+                      onClick={() => toggleCodePreview(item.id)}
+                      style={{
+                        background: 'rgba(255, 255, 255, 0.1)',
+                        color: '#ffffff',
+                        border: 'none',
+                        borderRadius: '6px',
+                        padding: '4px 8px',
+                        fontSize: '10px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {expandedCode === item.id ? 'Hide' : 'Code'}
+                    </button>
+                    <div style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      background: '#f59e0b'
+                    }} />
                   </div>
                 </div>
-                <div style={{
-                  width: '8px',
-                  height: '8px',
-                  borderRadius: '50%',
-                  background: '#f59e0b'
-                }} />
+                
+                {expandedCode === item.id && (
+                  <div style={{
+                    borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+                    padding: '12px',
+                    background: 'rgba(0, 0, 0, 0.2)'
+                  }}>
+                    <div style={{
+                      fontSize: '11px',
+                      color: 'rgba(255, 255, 255, 0.7)',
+                      marginBottom: '8px',
+                      fontWeight: '500'
+                    }}>
+                      Code Preview:
+                    </div>
+                    <pre style={{
+                      fontSize: '10px',
+                      color: '#ffffff',
+                      background: 'rgba(0, 0, 0, 0.3)',
+                      padding: '8px',
+                      borderRadius: '4px',
+                      overflow: 'auto',
+                      maxHeight: '150px',
+                      margin: 0,
+                      whiteSpace: 'pre-wrap',
+                      fontFamily: 'Monaco, Consolas, "Courier New", monospace'
+                    }}>
+                      {item.code}
+                    </pre>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -354,7 +404,11 @@ const PushSection = ({ pending, auth }: { pending: PendingItem[], auth: GitHubAu
   );
 };
 
-const SettingsSection = ({ auth, config }: { auth: GitHubAuth | null, config: RepoCfg }) => {
+const SettingsSection = ({ auth, config, onAuthUpdate }: { 
+  auth: GitHubAuth | null, 
+  config: RepoCfg,
+  onAuthUpdate: (auth: GitHubAuth) => void 
+}) => {
   const [token, setToken] = useState('');
   const [repoOwner, setRepoOwner] = useState(config?.owner || '');
   const [repoName, setRepoName] = useState(config?.repo || 'leetcode-solutions');
@@ -385,11 +439,7 @@ const SettingsSection = ({ auth, config }: { auth: GitHubAuth | null, config: Re
 
       if (response.success) {
         setVerifyStatus(`✓ Connected as ${response.username}`);
-        // Update the local homeData state immediately
-        setHomeData(prev => ({
-          ...prev,
-          auth: response.auth
-        }));
+        onAuthUpdate(response.auth);
         setTimeout(() => setVerifyStatus(''), 3000);
       } else {
         setVerifyStatus(`✗ ${response.error || 'Invalid token'}`);
@@ -451,48 +501,41 @@ const SettingsSection = ({ auth, config }: { auth: GitHubAuth | null, config: Re
         padding: '16px',
         border: '1px solid rgba(255, 255, 255, 0.12)'
       }}>
-        <div style={{ fontSize: '14px', fontWeight: '600', color: '#ffffff', marginBottom: '12px' }}>
+        <div style={{ fontSize: '14px', fontWeight: '500', color: '#ffffff', marginBottom: '12px' }}>
           GitHub Authentication
         </div>
         
         {auth?.connected ? (
           <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
             padding: '12px',
-            background: 'rgba(16, 185, 129, 0.15)',
+            background: 'rgba(16, 185, 129, 0.1)',
             borderRadius: '8px',
-            border: '1px solid rgba(16, 185, 129, 0.25)'
+            border: '1px solid rgba(16, 185, 129, 0.2)'
           }}>
-            <div style={{
-              width: '8px',
-              height: '8px',
-              borderRadius: '50%',
-              background: '#10b981'
-            }} />
-            <div style={{ color: '#ffffff', fontSize: '13px' }}>
-              Connected as <strong>{auth.username}</strong>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+              <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981' }} />
+              <span style={{ fontSize: '12px', fontWeight: '500', color: '#ffffff' }}>
+                Connected as {auth.username}
+              </span>
+            </div>
+            <div style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.7)' }}>
+              {auth.email}
             </div>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.7)' }}>
-              GitHub Personal Access Token:
-            </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <input
               type="password"
+              placeholder="Enter GitHub Personal Access Token"
               value={token}
               onChange={(e) => setToken(e.target.value)}
-              placeholder="Enter your GitHub token"
               style={{
-                width: '100%',
+                background: 'rgba(255, 255, 255, 0.1)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                borderRadius: '8px',
                 padding: '8px 12px',
-                background: 'rgba(255, 255, 255, 0.08)',
-                border: '1px solid rgba(255, 255, 255, 0.15)',
-                borderRadius: '6px',
-                color: '#ffffff',
                 fontSize: '12px',
+                color: '#ffffff',
                 outline: 'none'
               }}
             />
@@ -500,14 +543,14 @@ const SettingsSection = ({ auth, config }: { auth: GitHubAuth | null, config: Re
               onClick={handleVerifyToken}
               disabled={isVerifying}
               style={{
-                background: 'rgba(139, 92, 246, 0.9)',
+                background: 'linear-gradient(135deg, #3B82F6 0%, #1E40AF 100%)',
                 color: '#ffffff',
                 border: 'none',
-                borderRadius: '6px',
+                borderRadius: '8px',
                 padding: '8px 16px',
                 fontSize: '12px',
                 fontWeight: '500',
-                cursor: isVerifying ? 'not-allowed' : 'pointer',
+                cursor: 'pointer',
                 opacity: isVerifying ? 0.7 : 1
               }}
             >
@@ -516,8 +559,8 @@ const SettingsSection = ({ auth, config }: { auth: GitHubAuth | null, config: Re
             {verifyStatus && (
               <div style={{
                 fontSize: '11px',
-                color: verifyStatus.includes('✓') ? '#10b981' : '#ef4444',
-                textAlign: 'center'
+                color: verifyStatus.startsWith('✓') ? '#10b981' : '#ef4444',
+                marginTop: '4px'
               }}>
                 {verifyStatus}
               </div>
@@ -534,75 +577,81 @@ const SettingsSection = ({ auth, config }: { auth: GitHubAuth | null, config: Re
         padding: '16px',
         border: '1px solid rgba(255, 255, 255, 0.12)'
       }}>
-        <div style={{ fontSize: '14px', fontWeight: '600', color: '#ffffff', marginBottom: '12px' }}>
+        <div style={{ fontSize: '14px', fontWeight: '500', color: '#ffffff', marginBottom: '12px' }}>
           Repository Configuration
         </div>
         
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div>
-            <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.7)', marginBottom: '4px' }}>
-              Repository Owner:
-            </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 3fr', gap: '8px' }}>
             <input
               type="text"
+              placeholder="Username"
               value={repoOwner}
               onChange={(e) => setRepoOwner(e.target.value)}
-              placeholder="GitHub username or organization"
               style={{
-                width: '100%',
+                background: 'rgba(255, 255, 255, 0.1)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                borderRadius: '8px',
                 padding: '8px 12px',
-                background: 'rgba(255, 255, 255, 0.08)',
-                border: '1px solid rgba(255, 255, 255, 0.15)',
-                borderRadius: '6px',
-                color: '#ffffff',
                 fontSize: '12px',
+                color: '#ffffff',
                 outline: 'none'
               }}
             />
-          </div>
-
-          <div>
-            <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.7)', marginBottom: '4px' }}>
-              Repository Name:
-            </div>
             <input
               type="text"
+              placeholder="Repository name"
               value={repoName}
               onChange={(e) => setRepoName(e.target.value)}
-              placeholder="leetcode-solutions"
               style={{
-                width: '100%',
+                background: 'rgba(255, 255, 255, 0.1)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                borderRadius: '8px',
                 padding: '8px 12px',
-                background: 'rgba(255, 255, 255, 0.08)',
-                border: '1px solid rgba(255, 255, 255, 0.15)',
-                borderRadius: '6px',
-                color: '#ffffff',
                 fontSize: '12px',
+                color: '#ffffff',
                 outline: 'none'
               }}
             />
           </div>
 
-          <div>
-            <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.7)', marginBottom: '4px' }}>
-              Branch:
-            </div>
-            <input
-              type="text"
-              value={branch}
-              onChange={(e) => setBranch(e.target.value)}
-              placeholder="main"
+          <input
+            type="text"
+            placeholder="Branch (default: main)"
+            value={branch}
+            onChange={(e) => setBranch(e.target.value)}
+            style={{
+              background: 'rgba(255, 255, 255, 0.1)',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              borderRadius: '8px',
+              padding: '8px 12px',
+              fontSize: '12px',
+              color: '#ffffff',
+              outline: 'none'
+            }}
+          />
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <label style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.7)' }}>
+              Folder Structure
+            </label>
+            <select
+              value={folderStructure}
+              onChange={(e) => setFolderStructure(e.target.value as 'difficulty' | 'topic' | 'flat')}
               style={{
-                width: '100%',
+                background: 'rgba(255, 255, 255, 0.1)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                borderRadius: '8px',
                 padding: '8px 12px',
-                background: 'rgba(255, 255, 255, 0.08)',
-                border: '1px solid rgba(255, 255, 255, 0.15)',
-                borderRadius: '6px',
-                color: '#ffffff',
                 fontSize: '12px',
+                color: '#ffffff',
                 outline: 'none'
               }}
-            />
+            >
+              <option value="topic">By Topic (recommended)</option>
+              <option value="difficulty">By Difficulty</option>
+              <option value="flat">Flat Structure</option>
+            </select>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -611,53 +660,26 @@ const SettingsSection = ({ auth, config }: { auth: GitHubAuth | null, config: Re
               id="private-repo"
               checked={isPrivate}
               onChange={(e) => setIsPrivate(e.target.checked)}
-              style={{ width: '14px', height: '14px' }}
+              style={{ accentColor: '#3B82F6' }}
             />
             <label htmlFor="private-repo" style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.7)' }}>
-              Private Repository
+              Create as private repository
             </label>
           </div>
-
-          <div>
-            <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.7)', marginBottom: '4px' }}>
-              Folder Structure:
-            </div>
-            <select
-              value={folderStructure}
-              onChange={(e) => setFolderStructure(e.target.value as 'difficulty' | 'topic' | 'flat')}
-              style={{
-                width: '100%',
-                padding: '8px 12px',
-                background: 'rgba(255, 255, 255, 0.08)',
-                border: '1px solid rgba(255, 255, 255, 0.15)',
-                borderRadius: '6px',
-                color: '#ffffff',
-                fontSize: '12px',
-                outline: 'none'
-              }}
-            >
-              <option value="topic" style={{ background: '#1a1a1a' }}>By Topic</option>
-              <option value="difficulty" style={{ background: '#1a1a1a' }}>By Difficulty</option>
-              <option value="flat" style={{ background: '#1a1a1a' }}>Flat Structure</option>
-            </select>
-          </div>
-
-
 
           <button
             onClick={handleSaveConfig}
             disabled={isSaving}
             style={{
-              background: 'rgba(139, 92, 246, 0.9)',
+              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
               color: '#ffffff',
               border: 'none',
               borderRadius: '8px',
-              padding: '10px 20px',
+              padding: '10px 16px',
               fontSize: '12px',
               fontWeight: '500',
-              cursor: isSaving ? 'not-allowed' : 'pointer',
-              opacity: isSaving ? 0.7 : 1,
-              marginTop: '4px'
+              cursor: 'pointer',
+              opacity: isSaving ? 0.7 : 1
             }}
           >
             {isSaving ? 'Saving...' : 'Save Configuration'}
@@ -666,8 +688,8 @@ const SettingsSection = ({ auth, config }: { auth: GitHubAuth | null, config: Re
           {saveStatus && (
             <div style={{
               fontSize: '11px',
-              color: saveStatus.includes('✓') ? '#10b981' : '#ef4444',
-              textAlign: 'center'
+              color: saveStatus.startsWith('✓') ? '#10b981' : '#ef4444',
+              marginTop: '4px'
             }}>
               {saveStatus}
             </div>
@@ -678,145 +700,152 @@ const SettingsSection = ({ auth, config }: { auth: GitHubAuth | null, config: Re
   );
 };
 
-const Popup: React.FC = () => {
+const Popup = () => {
   const [activeTab, setActiveTab] = useState<'home' | 'push' | 'settings'>('home');
-  const [homeData, setHomeData] = useState<HomeData>({
-    stats: {
-      streak: 0,
-      counts: { easy: 0, medium: 0, hard: 0 },
-      recentSolves: []
-    },
-    pending: [],
-    auth: null,
-    config: {
-      owner: '',
-      repo: 'leetcode-solutions',
-      branch: 'main',
-      private: false,
-      folderStructure: 'topic' as 'topic',
-      includeDescription: true,
-      includeTestCases: false
-    }
-  });
-  const fetchData = () => {
+  const [homeData, setHomeData] = useState<HomeData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const loadHomeData = async () => {
     try {
-      chrome.runtime.sendMessage({ type: 'getHomeData' }, (response) => {
-        if (response && response.success && response.data) {
-          setHomeData(response.data);
-        } else {
-          console.error('Failed to fetch home data:', response);
-        }
+      const response = await new Promise<any>((resolve) => {
+        chrome.runtime.sendMessage({ type: 'getHomeData' }, resolve);
       });
+
+      if (response.success) {
+        setHomeData(response.data);
+      }
     } catch (error) {
-      console.error('Failed to fetch home data:', error);
+      console.error('Failed to load home data:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchData();
+    loadHomeData();
   }, []);
 
-  useEffect(() => {
-    fetchData();
-  }, [activeTab]);
+  const handleAuthUpdate = (auth: GitHubAuth) => {
+    setHomeData(prev => prev ? { ...prev, auth } : null);
+  };
+
+  if (isLoading) {
+    return (
+      <div style={{
+        width: '380px',
+        height: '600px',
+        background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: '#ffffff'
+      }}>
+        Loading...
+      </div>
+    );
+  }
+
+  if (!homeData) {
+    return (
+      <div style={{
+        width: '380px',
+        height: '600px',
+        background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: '#ffffff'
+      }}>
+        Failed to load data
+      </div>
+    );
+  }
 
   return (
     <div style={{
       width: '380px',
-      minHeight: '500px',
-      maxHeight: '600px',
-      background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4c1d95 100%)',
+      height: '600px',
+      background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+      color: '#ffffff',
+      fontFamily: 'system-ui, -apple-system, sans-serif',
       display: 'flex',
-      flexDirection: 'column',
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      position: 'relative'
+      flexDirection: 'column'
     }}>
       {/* Header */}
       <div style={{
-        padding: '16px 16px 12px 16px',
-        borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
+        padding: '16px',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+        background: 'rgba(255, 255, 255, 0.05)',
+        backdropFilter: 'blur(10px)'
       }}>
         <div style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '12px',
-          marginBottom: '12px'
+          justifyContent: 'center',
+          gap: '8px'
         }}>
           <div style={{
-            width: '32px',
-            height: '32px',
-            background: 'rgba(255, 255, 255, 0.15)',
-            borderRadius: '8px',
+            width: '24px',
+            height: '24px',
+            background: 'linear-gradient(135deg, #3B82F6 0%, #1E40AF 100%)',
+            borderRadius: '6px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '16px'
+            fontSize: '12px',
+            fontWeight: 'bold'
           }}>
-            🎯
+            L2G
           </div>
-          <div>
-            <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#ffffff' }}>
-              Leet2Git
-            </div>
-            <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.7)' }}>
-              LeetCode → GitHub Sync
-            </div>
-          </div>
+          <span style={{ fontSize: '16px', fontWeight: 'bold' }}>Leet2Git</span>
         </div>
+      </div>
 
-        {/* Tab Navigation */}
-        <div style={{ display: 'flex', gap: '4px' }}>
-          {[
-            { key: 'home', label: 'Home', icon: '🏠' },
-            { key: 'push', label: 'Push', icon: '🚀' },
-            { key: 'settings', label: 'Settings', icon: '⚙️' }
-          ].map(({ key, label, icon }) => (
-            <button
-              key={key}
-              onClick={() => setActiveTab(key as 'home' | 'push' | 'settings')}
-              style={{
-                flex: 1,
-                padding: '8px 6px',
-                background: activeTab === key 
-                  ? 'rgba(255, 255, 255, 0.15)' 
-                  : 'transparent',
-                border: 'none',
-                borderRadius: '8px',
-                color: '#ffffff',
-                fontSize: '11px',
-                fontWeight: '500',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '4px',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              <span style={{ fontSize: '12px' }}>{icon}</span>
-              <span>{label}</span>
-            </button>
-          ))}
-        </div>
+      {/* Navigation */}
+      <div style={{
+        display: 'flex',
+        background: 'rgba(255, 255, 255, 0.05)',
+        margin: '8px',
+        borderRadius: '12px',
+        padding: '4px'
+      }}>
+        {(['home', 'push', 'settings'] as const).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            style={{
+              flex: 1,
+              padding: '8px 12px',
+              fontSize: '12px',
+              fontWeight: '500',
+              border: 'none',
+              borderRadius: '8px',
+              background: activeTab === tab ? 'rgba(255, 255, 255, 0.15)' : 'transparent',
+              color: activeTab === tab ? '#ffffff' : 'rgba(255, 255, 255, 0.7)',
+              cursor: 'pointer',
+              textTransform: 'capitalize',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            {tab}
+          </button>
+        ))}
       </div>
 
       {/* Content */}
       <div style={{
         flex: 1,
-        padding: '16px',
-        overflowY: 'auto',
-        minHeight: 0
+        overflow: 'auto',
+        padding: '8px'
       }}>
-        {activeTab === 'home' && homeData && (
-          <HomeSection stats={homeData.stats} />
-        )}
-        
-        {activeTab === 'push' && homeData && (
-          <PushSection pending={homeData.pending} auth={homeData.auth} />
-        )}
-        
-        {activeTab === 'settings' && homeData && (
-          <SettingsSection auth={homeData.auth} config={homeData.config} />
+        {activeTab === 'home' && <HomeSection stats={homeData.stats} />}
+        {activeTab === 'push' && <PushSection pending={homeData.pending} onRefresh={loadHomeData} />}
+        {activeTab === 'settings' && (
+          <SettingsSection 
+            auth={homeData.auth} 
+            config={homeData.config}
+            onAuthUpdate={handleAuthUpdate}
+          />
         )}
       </div>
     </div>
