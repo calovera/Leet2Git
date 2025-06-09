@@ -1,1 +1,308 @@
-class f{constructor(){this.isLoggedIn=!1,this.username=null,this.init()}init(){this.checkLoginStatus(),this.setupMessageListener(),this.observeSubmissions()}checkLoginStatus(){var e;const r=document.querySelector('[data-cy="user-avatar"]'),s=document.querySelector(".nav-user-menu");if(r||s){this.isLoggedIn=!0;const t=document.querySelector('[data-cy="username"]')||document.querySelector(".nav-user-link")||document.querySelector(".username");t&&(this.username=((e=t.textContent)==null?void 0:e.trim())||null)}}setupMessageListener(){chrome.runtime.onMessage.addListener((r,s,e)=>{switch(r.type){case"CHECK_LOGIN_STATUS":this.checkLoginStatus(),e({connected:this.isLoggedIn,username:this.username});break;case"GET_SUBMISSIONS":return this.getRecentSubmissions().then(t=>{e(t)}).catch(t=>{e({error:t.message})}),!0;case"GET_CURRENT_PROBLEM":return this.getCurrentProblem().then(t=>{e(t)}).catch(t=>{e({error:t.message})}),!0;default:e({error:"Unknown message type"})}})}observeSubmissions(){new MutationObserver(s=>{s.forEach(e=>{e.type==="childList"&&document.querySelectorAll('[data-cy="submission-success"]').length>0&&this.handleSuccessfulSubmission()})}).observe(document.body,{childList:!0,subtree:!0})}async handleSuccessfulSubmission(){var r;try{await new Promise(e=>setTimeout(e,2e3));const s=await this.getCurrentProblem();s&&(chrome.runtime.sendMessage({type:"NEW_SUBMISSION",submission:s}),(r=(await chrome.storage.local.get(["settings"])).settings)!=null&&r.autoSync&&chrome.runtime.sendMessage({type:"SYNC_SOLUTIONS"}))}catch(s){console.error("Failed to handle submission:",s)}}async getRecentSubmissions(){var r,s,e,t;try{if(!window.location.href.includes("/submissions/"))return[];const o=[],u=document.querySelectorAll('.submission-row, [data-cy="submission-item"]');for(const n of Array.from(u).slice(0,10))try{const i=n.querySelector('.problem-title, .title-link, a[href*="/problems/"]'),a=n.querySelector(".status, .submission-status"),l=n.querySelector(".language, .submission-language"),d=n.querySelector(".timestamp, .submission-time");if(i&&a){const y=((r=i.textContent)==null?void 0:r.trim())||"",m=((s=a.textContent)==null?void 0:s.trim())||"",g=((e=l==null?void 0:l.textContent)==null?void 0:e.trim())||"Unknown";if(m==="Accepted"){const S=i.getAttribute("href")||((t=n.querySelector("a"))==null?void 0:t.getAttribute("href"));if(S){const c=await this.getSubmissionDetails(S);c&&o.push(c)}}}}catch(i){console.error("Error parsing submission row:",i)}return o}catch(o){return console.error("Failed to get recent submissions:",o),[]}}async getCurrentProblem(){var r,s,e,t;try{const o=document.querySelector('[data-cy="question-title"]')||document.querySelector(".question-title")||document.querySelector("h1");if(!o)return null;const u=((r=o.textContent)==null?void 0:r.trim())||"",n=document.querySelector("[data-difficulty]")||document.querySelector(".difficulty")||document.querySelector('[class*="difficulty"]');let i="Medium";if(n){const c=((s=n.textContent)==null?void 0:s.toLowerCase())||"";c.includes("easy")?i="Easy":c.includes("hard")&&(i="Hard")}const a=document.querySelector('[data-cy="question-content"]')||document.querySelector(".question-content")||document.querySelector(".problem-description"),l=((e=a==null?void 0:a.textContent)==null?void 0:e.trim())||"",d=document.querySelector(".monaco-editor")||document.querySelector(".CodeMirror")||document.querySelector('textarea[data-cy="code-editor"]');let y="";if(d){const c=d.querySelector("textarea");if(c)y=c.value;else{const h=d.CodeMirror;h&&(y=h.getValue())}}const m=document.querySelector('[data-cy="lang-select"]')||document.querySelector(".language-select")||document.querySelector('select[name*="language"]');let g="JavaScript";if(m){const c=m.querySelector("option:checked")||m.querySelector(".selected");c&&(g=((t=c.textContent)==null?void 0:t.trim())||"JavaScript")}const S=this.extractTestCases();return{title:u,difficulty:i,description:l,code:y,language:g,testCases:S,timestamp:new Date,status:"Accepted"}}catch(o){return console.error("Failed to get current problem:",o),null}}async getSubmissionDetails(r){try{return null}catch(s){return console.error("Failed to get submission details:",s),null}}extractTestCases(){var s,e;const r=[];try{const t=document.querySelectorAll('[data-cy="testcase"]')||document.querySelectorAll(".testcase")||document.querySelectorAll(".example");for(const o of t){const u=o.querySelector('.input, [data-cy="input"]'),n=o.querySelector('.output, [data-cy="output"]');u&&n&&r.push({input:((s=u.textContent)==null?void 0:s.trim())||"",output:((e=n.textContent)==null?void 0:e.trim())||""})}}catch(t){console.error("Failed to extract test cases:",t)}return r}}new f;
+// Leet2Git Content Script for LeetCode
+console.log("Leet2Git content script loaded on LeetCode");
+
+class LeetCodeDetector {
+  constructor() {
+    this.observer = null;
+    this.isObserving = false;
+    this.lastSubmissionTime = 0;
+    this.init();
+  }
+
+  init() {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => this.setupObserver());
+    } else {
+      this.setupObserver();
+    }
+  }
+
+  setupObserver() {
+    this.observer = new MutationObserver((mutations) => {
+      mutations.forEach(mutation => {
+        if (mutation.type === 'childList') {
+          this.checkForAcceptedModal();
+        }
+      });
+    });
+    
+    this.startObserving();
+  }
+
+  startObserving() {
+    if (this.observer && !this.isObserving) {
+      this.observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['class', 'data-state']
+      });
+      this.isObserving = true;
+      console.log("Started observing DOM for LeetCode submissions");
+    }
+  }
+
+  stopObserving() {
+    if (this.observer && this.isObserving) {
+      this.observer.disconnect();
+      this.isObserving = false;
+      console.log("Stopped observing DOM");
+    }
+  }
+
+  checkForAcceptedModal() {
+    // Throttle checks to prevent spam
+    const now = Date.now();
+    if (now - this.lastSubmissionTime < 2000) return;
+
+    // Check for accepted submission indicators
+    const successSelectors = [
+      '[data-e2e-locator="submission-result"]',
+      '.text-green-500',
+      '[class*="text-green"]',
+      '.submission-status',
+      '[data-cy="submission-result"]'
+    ];
+
+    let acceptedElement = null;
+    for (const selector of successSelectors) {
+      try {
+        const elements = document.querySelectorAll(selector);
+        for (const element of elements) {
+          if (element.textContent?.includes("Accepted")) {
+            acceptedElement = element;
+            break;
+          }
+        }
+        if (acceptedElement) break;
+      } catch (e) {
+        // Continue checking other selectors
+      }
+    }
+
+    // Also check for generic success indicators
+    if (!acceptedElement) {
+      const successElements = document.querySelectorAll('[class*="success"], [class*="green"], .text-green-500, .text-success');
+      for (const element of successElements) {
+        if (element.textContent?.toLowerCase().includes("accepted") || 
+            element.textContent?.toLowerCase().includes("success")) {
+          acceptedElement = element;
+          break;
+        }
+      }
+    }
+
+    if (acceptedElement && this.isOnProblemPage()) {
+      console.log("Detected accepted submission");
+      this.lastSubmissionTime = now;
+      this.handleAcceptedSubmission();
+    }
+  }
+
+  isOnProblemPage() {
+    return window.location.pathname.includes("/problems/") && 
+           !window.location.pathname.includes("/submissions");
+  }
+
+  async handleAcceptedSubmission() {
+    try {
+      // Wait for DOM to settle
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      const solutionData = this.extractSolutionData();
+      if (solutionData) {
+        chrome.runtime.sendMessage(
+          { type: "solved_dom", payload: solutionData },
+          (response) => {
+            if (response?.success) {
+              console.log("Solution sent to background:", solutionData.title);
+            } else {
+              console.error("Failed to send solution:", response?.error);
+            }
+          }
+        );
+      }
+    } catch (error) {
+      console.error("Error handling accepted submission:", error);
+    }
+  }
+
+  extractSolutionData() {
+    try {
+      // Extract title
+      const titleElement = document.querySelector('[data-cy="question-title"]') ||
+                          document.querySelector('h1[class*="title"]') ||
+                          document.querySelector('.css-v3d350') ||
+                          document.querySelector('h1');
+      
+      const title = titleElement?.textContent?.trim();
+      if (!title) {
+        console.error("Could not extract problem title");
+        return null;
+      }
+
+      // Extract slug from URL
+      const slugMatch = window.location.pathname.match(/\/problems\/([^\/]+)/);
+      const slug = slugMatch?.[1];
+      if (!slug) {
+        console.error("Could not extract problem slug");
+        return null;
+      }
+
+      // Extract difficulty
+      const difficultyElement = document.querySelector("[diff]") ||
+                               document.querySelector('[class*="difficulty"]') ||
+                               document.querySelector('.css-dcmtd5');
+      
+      let difficulty = "Medium";
+      if (difficultyElement) {
+        const diffText = difficultyElement.textContent?.toLowerCase() || "";
+        if (diffText.includes("easy")) difficulty = "Easy";
+        else if (diffText.includes("hard")) difficulty = "Hard";
+      }
+
+      // Extract description
+      const descElement = document.querySelector('[data-track-load="description_content"]') ||
+                         document.querySelector('.css-1iinkds') ||
+                         document.querySelector('[class*="question-content"]');
+      
+      const description = descElement?.textContent?.trim() || "";
+
+      // Extract code
+      const code = this.extractCodeFromEditor();
+      if (!code) {
+        console.error("Could not extract code from editor");
+        return null;
+      }
+
+      // Extract language
+      const language = this.extractLanguage();
+
+      return {
+        id: `${slug}-${language}-${Date.now()}`,
+        title,
+        slug,
+        difficulty,
+        description,
+        code,
+        language,
+        timestamp: Date.now()
+      };
+    } catch (error) {
+      console.error("Error extracting solution data:", error);
+      return null;
+    }
+  }
+
+  extractCodeFromEditor() {
+    // Try different editor types
+    const editorSelectors = [
+      '.monaco-editor .view-lines',
+      '.CodeMirror-code',
+      '[data-mode-id] .view-lines',
+      '.ace_content',
+      'textarea[data-cy="code-editor"]'
+    ];
+
+    for (const selector of editorSelectors) {
+      const editor = document.querySelector(selector);
+      if (editor) {
+        if (editor.classList.contains('view-lines')) {
+          // Monaco editor
+          const lines = editor.querySelectorAll('.view-line');
+          return Array.from(lines).map(line => line.textContent || "").join('\n');
+        } else if (editor.tagName === 'TEXTAREA') {
+          return editor.value;
+        } else {
+          return editor.textContent || "";
+        }
+      }
+    }
+
+    // Try Monaco API
+    try {
+      if (window.monaco && window.monaco.editor) {
+        const models = window.monaco.editor.getModels();
+        if (models.length > 0) {
+          return models[0].getValue();
+        }
+      }
+    } catch (e) {
+      console.log("Could not access Monaco editor instance");
+    }
+
+    // Try global editor variable
+    try {
+      if (window.editor && typeof window.editor.getValue === 'function') {
+        return window.editor.getValue();
+      }
+    } catch (e) {
+      console.log("Could not access global editor");
+    }
+
+    return "";
+  }
+
+  extractLanguage() {
+    // Try different language selector patterns
+    const langSelectors = [
+      '[data-cy="lang-select"] .ant-select-selection-item',
+      '.lang-select .selected',
+      '[class*="language-select"] [class*="selected"]',
+      'button[data-state="selected"][role="option"]'
+    ];
+
+    for (const selector of langSelectors) {
+      const element = document.querySelector(selector);
+      if (element?.textContent) {
+        return element.textContent.trim();
+      }
+    }
+
+    // Check URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const langParam = urlParams.get('lang');
+    if (langParam) return langParam;
+
+    // Intelligent detection based on code content
+    const code = this.extractCodeFromEditor();
+    if (code.includes('def ') || code.includes('print(')) return 'Python';
+    if (code.includes('function ') || code.includes('const ') || code.includes('let ')) return 'JavaScript';
+    if (code.includes('class ') && code.includes('public static')) return 'Java';
+    if (code.includes('#include') || code.includes('std::')) return 'C++';
+
+    return 'JavaScript'; // Default fallback
+  }
+
+  destroy() {
+    this.stopObserving();
+    if (this.observer) {
+      this.observer.disconnect();
+      this.observer = null;
+    }
+  }
+}
+
+// Initialize detector
+const detector = new LeetCodeDetector();
+
+// Handle page navigation in SPAs
+let currentHref = window.location.href;
+const navigationObserver = new MutationObserver(() => {
+  if (window.location.href !== currentHref) {
+    currentHref = window.location.href;
+    console.log("Page navigated, reinitializing detector");
+    detector.destroy();
+    setTimeout(() => {
+      new LeetCodeDetector();
+    }, 1000);
+  }
+});
+
+navigationObserver.observe(document.body, { childList: true, subtree: true });
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', () => {
+  detector.destroy();
+  navigationObserver.disconnect();
+});

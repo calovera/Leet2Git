@@ -1,176 +1,173 @@
-// Complete Chrome Extension Test - Run in Chrome DevTools Console
-// After loading the extension from dist-extension/ folder
-
+// Test Chrome Extension Complete Functionality
 async function testChromeExtension() {
-  console.log('🔧 Testing Complete Chrome Extension Functionality...');
+  console.log("🔧 Testing Leet2Git Chrome Extension...");
   
-  const results = [];
-  
+  // Test 1: Extension Installation
+  console.log("\n1. Testing Extension Installation:");
+  if (typeof chrome !== 'undefined' && chrome.runtime) {
+    console.log("✅ Extension installed and Chrome APIs available");
+  } else {
+    console.log("❌ Extension not installed or Chrome APIs not available");
+    return;
+  }
+
+  // Test 2: Background Script Communication
+  console.log("\n2. Testing Background Script:");
   try {
-    // Test 1: Basic Extension Loading
-    console.log('\n📦 Testing extension loading...');
-    if (typeof chrome !== 'undefined' && chrome.runtime) {
-      results.push({ test: 'Extension API Access', status: '✅ PASS', details: 'Chrome APIs available' });
-    } else {
-      results.push({ test: 'Extension API Access', status: '❌ FAIL', details: 'Chrome APIs not available' });
-      return results;
-    }
+    const response = await new Promise((resolve) => {
+      chrome.runtime.sendMessage({ type: 'getHomeData' }, resolve);
+    });
     
-    // Test 2: Background Script Communication
-    console.log('\n📡 Testing background script...');
+    if (response) {
+      console.log("✅ Background script responding");
+      console.log("Response:", response);
+    } else {
+      console.log("❌ No response from background script");
+    }
+  } catch (error) {
+    console.log("❌ Background script error:", error);
+  }
+
+  // Test 3: Storage Operations
+  console.log("\n3. Testing Storage:");
+  try {
+    const testData = { test_key: "test_value", timestamp: Date.now() };
+    
+    // Test storage write
     await new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        results.push({ test: 'Background Communication', status: '❌ FAIL', details: 'Timeout - no response' });
-        reject(new Error('Timeout'));
-      }, 5000);
-      
-      chrome.runtime.sendMessage({ type: 'getHomeData' }, (response) => {
-        clearTimeout(timeout);
+      chrome.storage.sync.set(testData, () => {
         if (chrome.runtime.lastError) {
-          results.push({ test: 'Background Communication', status: '❌ FAIL', details: chrome.runtime.lastError.message });
           reject(chrome.runtime.lastError);
         } else {
-          results.push({ test: 'Background Communication', status: '✅ PASS', details: 'Background script responding' });
-          console.log('Background response:', response);
-          resolve(response);
+          resolve();
         }
       });
     });
     
-    // Test 3: Storage Operations
-    console.log('\n💾 Testing storage...');
-    const testData = {
-      github_auth: {
-        token: 'ghp_test123',
-        username: 'testuser',
-        connected: true
-      },
-      pending: [{
-        id: 'test-problem-1',
-        title: 'Two Sum',
-        slug: 'two-sum',
-        language: 'Python',
-        difficulty: 'Easy',
-        code: 'def twoSum(nums, target): return []'
-      }],
-      stats: {
-        streak: 5,
-        counts: { easy: 3, medium: 2, hard: 0 }
-      }
-    };
-    
-    await chrome.storage.sync.set(testData);
-    const retrieved = await chrome.storage.sync.get(Object.keys(testData));
-    
-    if (retrieved.github_auth?.token === testData.github_auth.token && 
-        retrieved.pending?.length === 1 &&
-        retrieved.stats?.streak === 5) {
-      results.push({ test: 'Storage Operations', status: '✅ PASS', details: 'Data stored and retrieved correctly' });
-    } else {
-      results.push({ test: 'Storage Operations', status: '❌ FAIL', details: 'Storage data mismatch' });
-    }
-    
-    // Test 4: Options Page Access
-    console.log('\n⚙️ Testing options page...');
-    try {
-      chrome.runtime.openOptionsPage();
-      results.push({ test: 'Options Page', status: '✅ PASS', details: 'Options page opened successfully' });
-    } catch (error) {
-      results.push({ test: 'Options Page', status: '❌ FAIL', details: error.message });
-    }
-    
-    // Test 5: Push Validation
-    console.log('\n🚀 Testing push validation...');
-    await new Promise((resolve) => {
-      chrome.runtime.sendMessage({ type: 'push' }, (response) => {
-        if (response && (response.error?.includes('GitHub') || response.error?.includes('Repository'))) {
-          results.push({ test: 'Push Validation', status: '✅ PASS', details: 'Properly validates before pushing' });
-        } else if (response?.success) {
-          results.push({ test: 'Push Validation', status: '✅ PASS', details: 'Push completed successfully' });
+    // Test storage read
+    const result = await new Promise((resolve, reject) => {
+      chrome.storage.sync.get(['test_key', 'timestamp'], (data) => {
+        if (chrome.runtime.lastError) {
+          reject(chrome.runtime.lastError);
         } else {
-          results.push({ test: 'Push Validation', status: '❌ FAIL', details: 'Unexpected push response' });
+          resolve(data);
         }
-        resolve(response);
       });
     });
     
-    // Test 6: Content Script Injection
-    console.log('\n📝 Testing content script...');
-    try {
-      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (tabs.length > 0) {
-        chrome.tabs.sendMessage(tabs[0].id, { type: 'ping' }, (response) => {
-          if (response) {
-            results.push({ test: 'Content Script', status: '✅ PASS', details: 'Content script responding' });
-          } else {
-            results.push({ test: 'Content Script', status: '⚠️ INFO', details: 'No content script on current page (expected if not on LeetCode)' });
-          }
-        });
-      }
-    } catch (error) {
-      results.push({ test: 'Content Script', status: '⚠️ INFO', details: 'Content script test requires active tab' });
+    if (result.test_key === testData.test_key) {
+      console.log("✅ Storage operations working");
+    } else {
+      console.log("❌ Storage data mismatch");
     }
     
-    // Test 7: Badge Functionality
-    console.log('\n🔔 Testing badge...');
-    try {
-      await chrome.action.setBadgeText({ text: '3' });
-      await chrome.action.setBadgeBackgroundColor({ color: '#3B82F6' });
-      results.push({ test: 'Badge Functionality', status: '✅ PASS', details: 'Badge updated successfully' });
-    } catch (error) {
-      results.push({ test: 'Badge Functionality', status: '❌ FAIL', details: error.message });
-    }
+    // Cleanup
+    chrome.storage.sync.remove(['test_key', 'timestamp']);
     
   } catch (error) {
-    results.push({ test: 'Test Suite', status: '❌ FAIL', details: error.message });
+    console.log("❌ Storage error:", error);
   }
-  
-  // Print Results
-  console.log('\n📊 CHROME EXTENSION TEST RESULTS:');
-  console.log('=====================================');
-  
-  results.forEach(result => {
-    console.log(`${result.status} ${result.test}`);
-    console.log(`   ${result.details}`);
-  });
-  
-  const passed = results.filter(r => r.status.includes('✅')).length;
-  const failed = results.filter(r => r.status.includes('❌')).length;
-  const warnings = results.filter(r => r.status.includes('⚠️')).length;
-  
-  console.log(`\n📈 Summary: ${passed} passed, ${failed} failed, ${warnings} warnings`);
-  
-  if (failed === 0) {
-    console.log('\n🎉 EXTENSION IS PRODUCTION READY!');
-    console.log('\n📋 Installation Guide:');
-    console.log('1. Open Chrome → chrome://extensions/');
-    console.log('2. Enable "Developer mode"');
-    console.log('3. Click "Load unpacked"');
-    console.log('4. Select the dist-extension/ folder');
-    console.log('5. Click the extension icon to open popup');
-    console.log('6. Click settings icon → configure GitHub token');
-    console.log('7. Go to LeetCode and solve problems');
-    console.log('8. Solutions will be automatically captured and synced');
+
+  // Test 4: GitHub Auth Storage
+  console.log("\n4. Testing GitHub Auth Storage:");
+  try {
+    const authData = await new Promise((resolve) => {
+      chrome.storage.sync.get(['github_auth'], resolve);
+    });
     
-    console.log('\n🔑 Required Setup:');
-    console.log('• GitHub Personal Access Token with repo permissions');
-    console.log('• Repository configuration (owner/name)');
-    console.log('• LeetCode account for testing solution capture');
+    console.log("GitHub auth data:", authData);
     
-    console.log('\n✨ Features Working:');
-    console.log('• Automatic solution detection via API interception');
-    console.log('• Fallback DOM-based solution capture');
-    console.log('• GitHub repository sync with proper error handling');
-    console.log('• Statistics tracking and streak calculation');
-    console.log('• Badge notifications for pending solutions');
-    console.log('• Options page for configuration');
-    console.log('• Popup interface with tabs and validation');
-  } else {
-    console.log('\n⚠️ Extension needs fixes before production use');
+    if (authData.github_auth && authData.github_auth.connected) {
+      console.log("✅ GitHub authentication found");
+      console.log("Username:", authData.github_auth.username);
+    } else {
+      console.log("⚠️ No GitHub authentication configured");
+    }
+  } catch (error) {
+    console.log("❌ Auth storage error:", error);
   }
-  
-  return results;
+
+  // Test 5: Repository Config
+  console.log("\n5. Testing Repository Config:");
+  try {
+    const configData = await new Promise((resolve) => {
+      chrome.storage.sync.get(['repo_config'], resolve);
+    });
+    
+    console.log("Repository config:", configData);
+    
+    if (configData.repo_config && configData.repo_config.owner && configData.repo_config.repo) {
+      console.log("✅ Repository configuration found");
+      console.log("Repository:", `${configData.repo_config.owner}/${configData.repo_config.repo}`);
+    } else {
+      console.log("⚠️ No repository configuration found");
+    }
+  } catch (error) {
+    console.log("❌ Config storage error:", error);
+  }
+
+  // Test 6: Pending Solutions
+  console.log("\n6. Testing Pending Solutions:");
+  try {
+    const pendingData = await new Promise((resolve) => {
+      chrome.storage.sync.get(['pending'], resolve);
+    });
+    
+    console.log("Pending solutions:", pendingData);
+    
+    if (pendingData.pending && Array.isArray(pendingData.pending)) {
+      console.log(`✅ Found ${pendingData.pending.length} pending solutions`);
+      if (pendingData.pending.length > 0) {
+        console.log("Latest solution:", pendingData.pending[pendingData.pending.length - 1]);
+      }
+    } else {
+      console.log("⚠️ No pending solutions found");
+    }
+  } catch (error) {
+    console.log("❌ Pending storage error:", error);
+  }
+
+  // Test 7: Add Test Solution
+  console.log("\n7. Testing Add Solution:");
+  try {
+    const testSolution = {
+      id: `test-solution-${Date.now()}`,
+      title: "Test Problem",
+      slug: "test-problem",
+      difficulty: "Easy",
+      language: "JavaScript",
+      code: "function testSolution() { return 'Hello World'; }",
+      timestamp: Date.now()
+    };
+
+    const response = await new Promise((resolve) => {
+      chrome.runtime.sendMessage({ 
+        type: 'solved_dom', 
+        payload: testSolution 
+      }, resolve);
+    });
+
+    if (response && response.success) {
+      console.log("✅ Successfully added test solution");
+      
+      // Verify it was stored
+      const updatedPending = await new Promise((resolve) => {
+        chrome.storage.sync.get(['pending'], resolve);
+      });
+      
+      console.log(`Updated pending count: ${updatedPending.pending?.length || 0}`);
+    } else {
+      console.log("❌ Failed to add test solution:", response);
+    }
+  } catch (error) {
+    console.log("❌ Add solution error:", error);
+  }
+
+  console.log("\n🏁 Extension test complete!");
 }
 
 // Run the test
-testChromeExtension().catch(console.error);
+testChromeExtension();
+
+// Also export for manual execution
+window.testExtension = testChromeExtension;

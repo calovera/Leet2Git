@@ -103,9 +103,11 @@
         document.getElementById('loadingState').style.display = 'none';
         document.getElementById('tabContent').style.display = 'block';
         
-        if (response && response.success) {
+        if (response && response.success && response.data) {
           homeData = response.data;
+          console.log('Loaded home data:', homeData);
         } else {
+          console.log('No data received or error:', response);
           homeData = {
             stats: { streak: 0, counts: { easy: 0, medium: 0, hard: 0 }, recentSolves: [] },
             pending: [],
