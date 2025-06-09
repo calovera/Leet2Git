@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Direct Popup Test</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: system-ui, -apple-system, sans-serif;
+            background: #f3f4f6;
+        }
+        .test-container {
+            width: 320px;
+            height: 500px;
+            margin: 0 auto;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            overflow: hidden;
+            background: white;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        .status {
+            text-align: center;
+            margin: 20px 0;
+            padding: 12px;
+            border-radius: 8px;
+            background: #dcfce7;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+        }
+    </style>
+</head>
+<body>
+    <div class="status">
+        <strong>Testing Popup with Fixed Relative Paths</strong><br>
+        The popup should now load correctly with proper React components and styling.
+    </div>
+    
+    <div class="test-container">
+        <iframe src="dist-extension/src/popup/index.html" id="popup-test"></iframe>
+    </div>
+    
+    <script>
+        // Test if the popup loads correctly
+        setTimeout(() => {
+            const iframe = document.getElementById('popup-test');
+            try {
+                const doc = iframe.contentDocument || iframe.contentWindow.document;
+                const root = doc.getElementById('root');
+                
+                if (root && root.children.length > 0) {
+                    console.log('✓ React components loaded successfully');
+                    console.log('Root element has', root.children.length, 'child elements');
+                } else {
+                    console.log('✗ React components not loaded - root is empty');
+                }
+            } catch (e) {
+                console.log('Cannot access iframe content (cross-origin)');
+            }
+        }, 3000);
+        
+        // Open popup in new window for better testing
+        function openPopupWindow() {
+            window.open('dist-extension/src/popup/index.html', 'popup', 'width=320,height=500');
+        }
+        
+        // Add button to open in new window
+        const button = document.createElement('button');
+        button.textContent = 'Open Popup in New Window';
+        button.style.cssText = 'margin: 20px auto; display: block; padding: 12px 24px; background: #4f46e5; color: white; border: none; border-radius: 8px; cursor: pointer;';
+        button.onclick = openPopupWindow;
+        document.body.appendChild(button);
+    </script>
+</body>
+</html>
