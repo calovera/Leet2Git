@@ -1,210 +1,50 @@
-// Leet2Git Content Script - GraphQL Metadata Capture
 console.log("Leet2Git content script loaded");
 
-// Enhanced GraphQL interception - multiple approaches
-(function() {
-  const originalFetch = window.fetch;
+// Simple GraphQL interception
+const originalFetch = window.fetch;
+window.fetch = function(input: RequestInfo | URL, init?: RequestInit) {
+  let url: string;
+  if (typeof input === 'string') {
+    url = input;
+  } else if (input instanceof URL) {
+    url = input.href;
+  } else {
+    url = input.url;
+  }
   
-  window.fetch = function(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+  if (url.includes('graphql')) {
+    console.log('[Leet2Git] GraphQL request detected:', url);
     
-    if (url.includes('/graphql') && init?.method === 'POST') {
-      console.log('[Leet2Git] GraphQL POST request detected to:', url);
-      
-      // Try to inspect the request body to see if it's the questionDetail query
-      if (init.body) {
+    return originalFetch(input, init).then(async response => {
+      if (response.ok) {
+        const clone = response.clone();
         try {
-          const bodyStr = typeof init.body === 'string' ? init.body : new TextDecoder().decode(init.body as ArrayBuffer);
-          console.log('[Leet2Git] GraphQL request body:', bodyStr);
+          const data = await clone.json();
+          console.log('[Leet2Git] GraphQL response data:', data);
           
-          if (bodyStr.includes('questionDetail') || bodyStr.includes('topicTags')) {
-            console.log('[Leet2Git] Found questionDetail query with topicTags!');
-          }
-        } catch (e) {
-          console.log('[Leet2Git] Could not decode request body:', e);
-        }
-      }
-      
-      return originalFetch.call(this, input, init).then(async (response) => {
-        if (response.ok && response.headers.get('content-type')?.includes('application/json')) {
-          try {
-            const clonedResponse = response.clone();
-            const data = await clonedResponse.json();
+          if (data?.data?.question?.topicTags) {
+            console.log('[Leet2Git] TopicTags found:', data.data.question.topicTags);
             
-            console.log('[Leet2Git] GraphQL response data:', data);
-            
-            // Check for the specific questionDetail response structure
-            if (data?.data?.question && data.data.question.topicTags) {
-              const questionData = {
+            chrome.runtime.sendMessage({
+              type: 'graphql_question_data',
+              data: {
                 slug: data.data.question.titleSlug,
                 title: data.data.question.title,
                 difficulty: data.data.question.difficulty,
                 categoryTitle: data.data.question.categoryTitle,
                 topicTags: data.data.question.topicTags
-              };
-              
-              console.log('[Leet2Git] SUCCESS! Question data with topicTags extracted:', questionData);
-              console.log('[Leet2Git] TopicTags found:', questionData.topicTags);
-              console.log('[Leet2Git] First topicTag name:', questionData.topicTags[0]?.name);
-              
-              chrome.runtime.sendMessage({
-                type: 'graphql_question_data',
-                data: questionData
-              }, (response) => {
-                console.log('[Leet2Git] Background response:', response);
-              });
-            } else {
-              console.log('[Leet2Git] GraphQL response does not contain question with topicTags');
-            }
-          } catch (error) {
-            console.error('[Leet2Git] Error processing GraphQL response:', error);
-          }
-        }
-        return response;
-      });
-    }
-    
-    return originalFetch.call(this, input, init);
-  };
-})();
-
-// Additional approach: Monitor DOM for question data
-function extractQuestionFromDOM() {
-  try {
-    // Try to find question data in script tags
-    const scripts = document.querySelectorAll('script');
-    for (const script of scripts) {
-      const content = script.textContent || '';
-      if (content.includes('questionId') && content.includes('topicTags')) {
-        console.log('[Leet2Git] Found question data in DOM script');
-        
-        // Try to extract JSON data
-        const matches = content.match(/window\.__INITIAL_STATE__\s*=\s*({.+?});/);
-        if (matches) {
-          try {
-            const initialState = JSON.parse(matches[1]);
-            console.log('[Leet2Git] Initial state extracted:', initialState);
-            
-            // Look for question data in various possible locations
-            const question = initialState?.questionDetail?.question || 
-                           initialState?.question || 
-                           initialState?.data?.question;
-                           
-            if (question && question.titleSlug) {
-              const questionData = {
-                slug: question.titleSlug,
-                title: question.title,
-                difficulty: question.difficulty,
-                categoryTitle: question.categoryTitle,
-                topicTags: question.topicTags || []
-              };
-              
-              console.log('[Leet2Git] Question data from DOM:', questionData);
-              
-              chrome.runtime.sendMessage({
-                type: 'graphql_question_data',
-                data: questionData
-              });
-            }
-          } catch (e) {
-            console.log('[Leet2Git] Failed to parse initial state:', e);
-          }
-        }
-      }
-    }
-  } catch (error) {
-    console.error('[Leet2Git] Error extracting from DOM:', error);
-  }
-}
-
-// Try DOM extraction on page load and when URL changes
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', extractQuestionFromDOM);
-} else {
-  extractQuestionFromDOM();
-}
-
-// Also try when navigating to a problem page
-let lastUrl = location.href;
-new MutationObserver(() => {
-  const url = location.href;
-  if (url !== lastUrl) {
-    lastUrl = url;
-    if (url.includes('/problems/')) {
-      console.log('[Leet2Git] URL changed to problem page:', url);
-      setTimeout(extractQuestionFromDOM, 1000); // Wait for page to load
-    }
-  }
-}).observe(document, { subtree: true, childList: true });
-
-// Enhanced XMLHttpRequest interception for GraphQL capture
-(function() {
-  const originalXHROpen = XMLHttpRequest.prototype.open;
-  const originalXHRSend = XMLHttpRequest.prototype.send;
-  
-  XMLHttpRequest.prototype.open = function(method: string, url: string | URL, ...args: any[]) {
-    this._method = method;
-    this._url = typeof url === 'string' ? url : url.href;
-    return originalXHROpen.apply(this, [method, url, ...args]);
-  };
-  
-  XMLHttpRequest.prototype.send = function(body?: Document | XMLHttpRequestBodyInit | null) {
-    if (this._method === 'POST' && this._url?.includes('/graphql')) {
-      console.log('[Leet2Git] XHR GraphQL POST detected to:', this._url);
-      
-      // Log the request body
-      if (body) {
-        console.log('[Leet2Git] XHR request body:', body);
-      }
-      
-      const originalOnLoad = this.onload;
-      const originalOnReadyStateChange = this.onreadystatechange;
-      
-      this.onreadystatechange = function() {
-        if (this.readyState === 4 && this.status === 200) {
-          try {
-            if (this.responseText && this.getResponseHeader('content-type')?.includes('application/json')) {
-              const data = JSON.parse(this.responseText);
-              console.log('[Leet2Git] XHR GraphQL response:', data);
-              
-              if (data?.data?.question && data.data.question.topicTags) {
-                const questionData = {
-                  slug: data.data.question.titleSlug,
-                  title: data.data.question.title,
-                  difficulty: data.data.question.difficulty,
-                  categoryTitle: data.data.question.categoryTitle,
-                  topicTags: data.data.question.topicTags
-                };
-                
-                console.log('[Leet2Git] XHR SUCCESS! Question data with topicTags:', questionData);
-                console.log('[Leet2Git] XHR TopicTags found:', questionData.topicTags);
-                console.log('[Leet2Git] XHR First topicTag name:', questionData.topicTags[0]?.name);
-                
-                chrome.runtime.sendMessage({
-                  type: 'graphql_question_data',
-                  data: questionData
-                }, (response) => {
-                  console.log('[Leet2Git] XHR Background response:', response);
-                });
               }
-            }
-          } catch (error) {
-            console.error('[Leet2Git] Error processing XHR GraphQL response:', error);
+            });
           }
+        } catch (e) {
+          console.log('[Leet2Git] JSON parse error:', e);
         }
-        
-        if (originalOnReadyStateChange) {
-          originalOnReadyStateChange.call(this);
-        }
-      };
-      
-      this.onload = function(event) {
-        if (originalOnLoad) {
-          originalOnLoad.call(this, event);
-        }
-      };
-    }
-    
-    return originalXHRSend.call(this, body);
-  };
-})();
+      }
+      return response;
+    });
+  }
+  
+  return originalFetch(input, init);
+};
+
+console.log('[Leet2Git] GraphQL interception installed');

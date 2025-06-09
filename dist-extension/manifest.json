@@ -20,7 +20,7 @@
   "content_scripts": [
     {
       "js": [
-        "assets/content.ts-loader.Th5zkolW.js"
+        "assets/content.ts-loader.uXZlgofy.js"
       ],
       "matches": [
         "https://leetcode.com/*"
@@ -47,7 +47,7 @@
         "https://leetcode.com/*"
       ],
       "resources": [
-        "assets/content.ts.DJdm4zcB.js"
+        "assets/content.ts.bL9yAcal.js"
       ],
       "use_dynamic_url": true
     }
