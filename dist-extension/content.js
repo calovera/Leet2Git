@@ -27,7 +27,9 @@ window.fetch = async function(...args) {
             slug: questionData.titleSlug,
             title: questionData.title,
             difficulty: questionData.difficulty,
-            tag: questionData.topicTags?.[0]?.name || 'Uncategorized'
+            tag: questionData.topicTags?.[0]?.name || questionData.categoryTitle || 'Algorithms',
+            categoryTitle: questionData.categoryTitle,
+            topicTags: questionData.topicTags
           }
         });
         
@@ -68,7 +70,9 @@ XMLHttpRequest.prototype.send = function(body) {
               slug: questionData.titleSlug,
               title: questionData.title,
               difficulty: questionData.difficulty,
-              tag: questionData.topicTags?.[0]?.name || 'Uncategorized'
+              tag: questionData.topicTags?.[0]?.name || questionData.categoryTitle || 'Algorithms',
+              categoryTitle: questionData.categoryTitle,
+              topicTags: questionData.topicTags
             }
           });
           

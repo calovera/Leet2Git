@@ -310,7 +310,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         slug: message.data.slug,
         title: message.data.title,
         difficulty: message.data.difficulty,
-        tag: message.data.tag
+        tag: message.data.tag,
+        categoryTitle: message.data.categoryTitle,
+        topicTags: message.data.topicTags
       };
       
       // Cache the metadata
@@ -665,7 +667,8 @@ function generateFilePath(solution, config) {
     case 'difficulty':
       return solution.difficulty;
     case 'topic':
-      return solution.tag || 'Uncategorized';
+      // Use the primary topic tag, fallback to categoryTitle, then 'Algorithms'
+      return solution.tag && solution.tag !== 'Uncategorized' ? solution.tag : 'Algorithms';
     case 'flat':
     default:
       return '.';
@@ -691,23 +694,31 @@ function generateFileContent(solution, config) {
 
 function getFileExtension(language) {
   const extensions = {
-    'JavaScript': 'js',
-    'Python': 'py',
-    'Python3': 'py',
-    'Java': 'java',
-    'C++': 'cpp',
-    'C': 'c',
-    'C#': 'cs',
-    'Ruby': 'rb',
-    'Swift': 'swift',
-    'Go': 'go',
-    'Scala': 'scala',
-    'Kotlin': 'kt',
-    'Rust': 'rs',
-    'PHP': 'php',
-    'TypeScript': 'ts'
+    'javascript': 'js',
+    'python': 'py',
+    'python3': 'py',
+    'java': 'java',
+    'c++': 'cpp',
+    'cpp': 'cpp',
+    'c': 'c',
+    'c#': 'cs',
+    'csharp': 'cs',
+    'ruby': 'rb',
+    'swift': 'swift',
+    'go': 'go',
+    'golang': 'go',
+    'scala': 'scala',
+    'kotlin': 'kt',
+    'rust': 'rs',
+    'php': 'php',
+    'typescript': 'ts',
+    'mysql': 'sql',
+    'postgresql': 'sql'
   };
-  return extensions[language] || 'txt';
+  
+  // Normalize language string
+  const normalizedLang = (language || '').toLowerCase().trim();
+  return extensions[normalizedLang] || 'py'; // Default to .py instead of .txt
 }
 
 async function upsertFile({ token, owner, repo, branch, path, content, message }) {
