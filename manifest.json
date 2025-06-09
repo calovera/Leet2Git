@@ -19,7 +19,7 @@
   "content_scripts": [
     {
       "matches": ["https://leetcode.com/*"],
-      "js": ["src/content.ts"],
+      "js": ["src/content.ts", "src/content/leetcode-hook.ts"],
       "run_at": "document_end"
     }
   ],
@@ -27,7 +27,9 @@
     "identity",
     "storage",
     "activeTab",
-    "tabs"
+    "tabs",
+    "webRequest",
+    "scripting"
   ],
   "host_permissions": [
     "https://github.com/*",

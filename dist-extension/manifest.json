@@ -20,7 +20,8 @@
   "content_scripts": [
     {
       "js": [
-        "assets/content.ts-loader-DrArN83n.js"
+        "assets/content.ts-loader-DrArN83n.js",
+        "assets/leetcode-hook.ts-loader-Bpot1wC3.js"
       ],
       "matches": [
         "https://leetcode.com/*"
@@ -32,7 +33,9 @@
     "identity",
     "storage",
     "activeTab",
-    "tabs"
+    "tabs",
+    "webRequest",
+    "scripting"
   ],
   "host_permissions": [
     "https://github.com/*",
@@ -45,7 +48,8 @@
         "https://leetcode.com/*"
       ],
       "resources": [
-        "assets/content.ts-CzJHTaC0.js"
+        "assets/content.ts-CzJHTaC0.js",
+        "assets/leetcode-hook.ts-DBoEGHur.js"
       ],
       "use_dynamic_url": true
     }
