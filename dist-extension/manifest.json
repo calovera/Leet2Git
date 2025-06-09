@@ -16,7 +16,13 @@
     "default_title": "Leet2Git - Sync LeetCode to GitHub"
   },
   "options_page": "options.html",
-
+  "content_scripts": [
+    {
+      "matches": ["https://leetcode.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ],
   "permissions": [
     "identity",
     "storage",

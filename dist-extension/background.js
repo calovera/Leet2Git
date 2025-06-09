@@ -103,17 +103,7 @@ chrome.runtime.onStartup.addListener(() => {
   updateBadge();
 });
 
-// B. Capture difficulty + primary tag from GraphQL responses
-chrome.webRequest.onResponseStarted.addListener(
-  (details) => {
-    if (details.method === 'POST' && details.statusCode === 200) {
-      // We need to use a different approach since we can't read response body directly
-      // We'll rely on the content script to send us the GraphQL data
-      console.log(`[Leet2Git] GraphQL response detected for tab ${details.tabId}`);
-    }
-  },
-  { urls: ['*://leetcode.com/graphql*'] }
-);
+// B. GraphQL data is now handled in the main message handler below
 
 // This handler was moved to the earlier onBeforeRequest listener
 
@@ -315,6 +305,28 @@ async function updateStats(solution) {
 // Message handler
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   switch (message.type) {
+    case "graphql_question_data":
+      const meta = {
+        slug: message.data.slug,
+        title: message.data.title,
+        difficulty: message.data.difficulty,
+        tag: message.data.tag
+      };
+      
+      // Cache the metadata
+      cacheQuestionMeta(meta);
+      
+      // Update tab data if this tab is tracking this problem
+      if (sender.tab?.id) {
+        const tabInfo = tabData.get(sender.tab.id);
+        if (tabInfo && tabInfo.slug === meta.slug) {
+          tabInfo.metadata = meta;
+          console.log(`[Leet2Git] Updated metadata for tab ${sender.tab.id}: ${meta.title}`);
+        }
+      }
+      
+      sendResponse({ success: true });
+      break;
     case "auth":
       handleAuth(sendResponse);
       break;
