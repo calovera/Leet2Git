@@ -1,34 +1,27 @@
 {
-  "../../../../../@crx/manifest": {
+  "../../../@crx/manifest": {
     "file": "assets/crx-manifest.js.js",
     "name": "crx-manifest.js",
-    "src": "../../../../../@crx/manifest",
+    "src": "../../../@crx/manifest",
     "isEntry": true
   },
-  "_content.ts-loader.js": {
-    "file": "assets/content.ts-loader.js",
-    "src": "_content.ts-loader.js"
-  },
-  "_index.css": {
-    "file": "assets/index.css",
-    "src": "_index.css"
-  },
-  "_index.js": {
-    "file": "assets/index.js",
-    "name": "index",
-    "css": [
-      "assets/index.css"
-    ]
-  },
-  "_leetcode-hook.ts-loader.js": {
-    "file": "assets/leetcode-hook.ts-loader.js",
-    "src": "_leetcode-hook.ts-loader.js"
+  "_client.js": {
+    "file": "assets/client.js",
+    "name": "client"
   },
   "background.js": {
     "file": "background.js",
     "name": "background",
     "src": "background.js",
     "isEntry": true
+  },
+  "content.ts-loader.js": {
+    "file": "assets/content.ts-loader.js",
+    "src": "content.ts-loader.js"
+  },
+  "leetcode-hook.ts-loader.js": {
+    "file": "assets/leetcode-hook.ts-loader.js",
+    "src": "leetcode-hook.ts-loader.js"
   },
   "src/content.ts": {
     "file": "assets/content.js",
@@ -48,7 +41,7 @@
     "src": "src/options/index.html",
     "isEntry": true,
     "imports": [
-      "_index.js"
+      "_client.js"
     ]
   },
   "src/popup/index.html": {
@@ -57,7 +50,10 @@
     "src": "src/popup/index.html",
     "isEntry": true,
     "imports": [
-      "_index.js"
+      "_client.js"
+    ],
+    "css": [
+      "assets/popup.css"
     ]
   }
 }
