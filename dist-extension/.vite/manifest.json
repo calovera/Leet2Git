@@ -14,7 +14,7 @@
     "src": "content.ts-loader.js"
   },
   "src/background.ts": {
-    "file": "assets/background.ts.DKV3gDkf.js",
+    "file": "assets/background.ts.Da-gGJ-u.js",
     "name": "background.ts",
     "src": "src/background.ts",
     "isEntry": true
