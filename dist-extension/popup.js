@@ -87,9 +87,14 @@
     
     if (currentTab === 'home') {
       content.innerHTML = renderHomeTab();
+      // Re-attach event listeners for home tab
+      const configureBtn = document.getElementById('configureBtn');
+      if (configureBtn) {
+        configureBtn.addEventListener('click', openOptions);
+      }
     } else {
       content.innerHTML = renderPushTab();
-      // Re-attach event listeners for dynamically created elements
+      // Re-attach event listeners for push tab
       const pushBtn = document.getElementById('pushBtn');
       if (pushBtn) {
         pushBtn.addEventListener('click', handlePush);
@@ -167,7 +172,7 @@
         </div>
 
         ${!connected ? `
-          <button class="btn btn-primary" style="width: 100%;" onclick="chrome.runtime.openOptionsPage()">
+          <button id="configureBtn" class="btn btn-primary" style="width: 100%;">
             Configure GitHub
           </button>
         ` : ''}
