@@ -8,10 +8,22 @@ console.log("Leet2Git content script loaded");
   window.fetch = function(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
     
-    console.log('[Leet2Git] Fetch intercepted:', url);
-    
-    if (url.includes('/graphql')) {
-      console.log('[Leet2Git] GraphQL request detected');
+    if (url.includes('/graphql') && init?.method === 'POST') {
+      console.log('[Leet2Git] GraphQL POST request detected to:', url);
+      
+      // Try to inspect the request body to see if it's the questionDetail query
+      if (init.body) {
+        try {
+          const bodyStr = typeof init.body === 'string' ? init.body : new TextDecoder().decode(init.body as ArrayBuffer);
+          console.log('[Leet2Git] GraphQL request body:', bodyStr);
+          
+          if (bodyStr.includes('questionDetail') || bodyStr.includes('topicTags')) {
+            console.log('[Leet2Git] Found questionDetail query with topicTags!');
+          }
+        } catch (e) {
+          console.log('[Leet2Git] Could not decode request body:', e);
+        }
+      }
       
       return originalFetch.call(this, input, init).then(async (response) => {
         if (response.ok && response.headers.get('content-type')?.includes('application/json')) {
@@ -21,16 +33,19 @@ console.log("Leet2Git content script loaded");
             
             console.log('[Leet2Git] GraphQL response data:', data);
             
-            if (data?.data?.question) {
+            // Check for the specific questionDetail response structure
+            if (data?.data?.question && data.data.question.topicTags) {
               const questionData = {
                 slug: data.data.question.titleSlug,
                 title: data.data.question.title,
                 difficulty: data.data.question.difficulty,
                 categoryTitle: data.data.question.categoryTitle,
-                topicTags: data.data.question.topicTags || []
+                topicTags: data.data.question.topicTags
               };
               
-              console.log('[Leet2Git] Question data extracted:', questionData);
+              console.log('[Leet2Git] SUCCESS! Question data with topicTags extracted:', questionData);
+              console.log('[Leet2Git] TopicTags found:', questionData.topicTags);
+              console.log('[Leet2Git] First topicTag name:', questionData.topicTags[0]?.name);
               
               chrome.runtime.sendMessage({
                 type: 'graphql_question_data',
@@ -38,6 +53,8 @@ console.log("Leet2Git content script loaded");
               }, (response) => {
                 console.log('[Leet2Git] Background response:', response);
               });
+            } else {
+              console.log('[Leet2Git] GraphQL response does not contain question with topicTags');
             }
           } catch (error) {
             console.error('[Leet2Git] Error processing GraphQL response:', error);
@@ -120,7 +137,7 @@ new MutationObserver(() => {
   }
 }).observe(document, { subtree: true, childList: true });
 
-// Intercept XMLHttpRequest for additional GraphQL capture
+// Enhanced XMLHttpRequest interception for GraphQL capture
 (function() {
   const originalXHROpen = XMLHttpRequest.prototype.open;
   const originalXHRSend = XMLHttpRequest.prototype.send;
@@ -133,36 +150,55 @@ new MutationObserver(() => {
   
   XMLHttpRequest.prototype.send = function(body?: Document | XMLHttpRequestBodyInit | null) {
     if (this._method === 'POST' && this._url?.includes('/graphql')) {
-      const originalOnLoad = this.onload;
+      console.log('[Leet2Git] XHR GraphQL POST detected to:', this._url);
       
-      this.onload = function(event) {
-        try {
-          if (this.responseText && this.getResponseHeader('content-type')?.includes('application/json')) {
-            const data = JSON.parse(this.responseText);
-            
-            if (data?.data?.question) {
-              const questionData = {
-                slug: data.data.question.titleSlug,
-                title: data.data.question.title,
-                difficulty: data.data.question.difficulty,
-                categoryTitle: data.data.question.categoryTitle,
-                topicTags: data.data.question.topicTags || []
-              };
+      // Log the request body
+      if (body) {
+        console.log('[Leet2Git] XHR request body:', body);
+      }
+      
+      const originalOnLoad = this.onload;
+      const originalOnReadyStateChange = this.onreadystatechange;
+      
+      this.onreadystatechange = function() {
+        if (this.readyState === 4 && this.status === 200) {
+          try {
+            if (this.responseText && this.getResponseHeader('content-type')?.includes('application/json')) {
+              const data = JSON.parse(this.responseText);
+              console.log('[Leet2Git] XHR GraphQL response:', data);
               
-              chrome.runtime.sendMessage({
-                type: 'graphql_question_data',
-                data: questionData
-              }, (response) => {
-                if (response?.success) {
-                  console.log('[Leet2Git] XHR GraphQL metadata sent:', questionData.title);
-                }
-              });
+              if (data?.data?.question && data.data.question.topicTags) {
+                const questionData = {
+                  slug: data.data.question.titleSlug,
+                  title: data.data.question.title,
+                  difficulty: data.data.question.difficulty,
+                  categoryTitle: data.data.question.categoryTitle,
+                  topicTags: data.data.question.topicTags
+                };
+                
+                console.log('[Leet2Git] XHR SUCCESS! Question data with topicTags:', questionData);
+                console.log('[Leet2Git] XHR TopicTags found:', questionData.topicTags);
+                console.log('[Leet2Git] XHR First topicTag name:', questionData.topicTags[0]?.name);
+                
+                chrome.runtime.sendMessage({
+                  type: 'graphql_question_data',
+                  data: questionData
+                }, (response) => {
+                  console.log('[Leet2Git] XHR Background response:', response);
+                });
+              }
             }
+          } catch (error) {
+            console.error('[Leet2Git] Error processing XHR GraphQL response:', error);
           }
-        } catch (error) {
-          console.error('[Leet2Git] Error processing XHR GraphQL response:', error);
         }
         
+        if (originalOnReadyStateChange) {
+          originalOnReadyStateChange.call(this);
+        }
+      };
+      
+      this.onload = function(event) {
         if (originalOnLoad) {
           originalOnLoad.call(this, event);
         }

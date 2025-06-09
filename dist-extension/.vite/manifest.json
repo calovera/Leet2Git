@@ -10,7 +10,7 @@
     "name": "client"
   },
   "content.ts-loader.js": {
-    "file": "assets/content.ts-loader.CFjytJbz.js",
+    "file": "assets/content.ts-loader.Th5zkolW.js",
     "src": "content.ts-loader.js"
   },
   "src/background.ts": {
@@ -20,7 +20,7 @@
     "isEntry": true
   },
   "src/content.ts": {
-    "file": "assets/content.ts.Dnn2cV6U.js",
+    "file": "assets/content.ts.DJdm4zcB.js",
     "name": "content.ts",
     "src": "src/content.ts",
     "isEntry": true
