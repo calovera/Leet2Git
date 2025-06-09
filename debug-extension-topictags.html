@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug TopicTags Issue</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #1a1a1a; color: white; }
+        .container { max-width: 900px; margin: 0 auto; }
+        .section { background: #2d2d2d; padding: 20px; margin: 20px 0; border-radius: 8px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .success { background: #10b981; }
+        .error { background: #ef4444; }
+        .warning { background: #f59e0b; }
+        .info { background: #3b82f6; }
+        button { background: #8b5cf6; color: white; border: none; padding: 10px 20px; margin: 5px; border-radius: 4px; cursor: pointer; }
+        .logs { background: #1f2937; padding: 15px; border-radius: 4px; font-family: monospace; white-space: pre-wrap; max-height: 300px; overflow-y: auto; }
+        .data { background: #374151; padding: 10px; border-radius: 4px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Debug TopicTags Implementation</h1>
+        
+        <div class="section">
+            <h2>1. Send Mock Two Sum Data</h2>
+            <button onclick="sendTwoSumData()">Send GraphQL Data</button>
+            <div id="graphqlStatus" class="status info">Ready to send GraphQL data</div>
+            <div id="graphqlLogs" class="logs" style="display: none;"></div>
+        </div>
+
+        <div class="section">
+            <h2>2. Check Storage</h2>
+            <button onclick="checkStorage()">Check Current Storage</button>
+            <div id="storageStatus" class="status info">Ready to check storage</div>
+            <div id="storageData" class="data" style="display: none;"></div>
+        </div>
+
+        <div class="section">
+            <h2>3. Background Console Logs</h2>
+            <div class="info">
+                <strong>To see background script logs:</strong><br>
+                1. Open Chrome Extensions page (chrome://extensions/)<br>
+                2. Find Leet2Git extension<br>
+                3. Click "Service worker" (or "background page")<br>
+                4. Check console for debug messages
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>4. Expected vs Actual</h2>
+            <div class="data">
+                <strong>Expected Result:</strong><br>
+                - GraphQL captures topicTags: [{"name": "Array"}, {"name": "Hash Table"}]<br>
+                - Background script uses topicTags[0].name = "Array"<br>
+                - Folder path becomes: "Array/TwoSum.py"<br><br>
+                
+                <strong>Current Problem:</strong><br>
+                - Still showing "Algorithms/TwoSum.py" instead of "Array/TwoSum.py"
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function updateStatus(id, message, type) {
+            const el = document.getElementById(id);
+            el.textContent = message;
+            el.className = `status ${type}`;
+        }
+
+        function showLogs(id, content) {
+            const el = document.getElementById(id);
+            el.textContent = content;
+            el.style.display = 'block';
+        }
+
+        function showData(id, content) {
+            const el = document.getElementById(id);
+            el.innerHTML = content;
+            el.style.display = 'block';
+        }
+
+        function sendTwoSumData() {
+            updateStatus('graphqlStatus', 'Sending Two Sum GraphQL data...', 'warning');
+            
+            const twoSumData = {
+                slug: "two-sum",
+                title: "Two Sum",
+                difficulty: "Easy",
+                categoryTitle: "Algorithms",
+                topicTags: [
+                    {
+                        "name": "Array",
+                        "slug": "array",
+                        "translatedName": null
+                    },
+                    {
+                        "name": "Hash Table",
+                        "slug": "hash-table",
+                        "translatedName": null
+                    }
+                ]
+            };
+
+            console.log('[Debug] Sending GraphQL data:', twoSumData);
+
+            chrome.runtime.sendMessage({
+                type: 'graphql_question_data',
+                data: twoSumData
+            }, (response) => {
+                if (chrome.runtime.lastError) {
+                    updateStatus('graphqlStatus', 'Error: ' + chrome.runtime.lastError.message, 'error');
+                    showLogs('graphqlLogs', 'Error: ' + chrome.runtime.lastError.message);
+                } else if (response && response.success) {
+                    updateStatus('graphqlStatus', 'GraphQL data sent successfully', 'success');
+                    showLogs('graphqlLogs', 'Response: ' + JSON.stringify(response, null, 2));
+                } else {
+                    updateStatus('graphqlStatus', 'Unexpected response', 'warning');
+                    showLogs('graphqlLogs', 'Response: ' + JSON.stringify(response, null, 2));
+                }
+            });
+        }
+
+        function checkStorage() {
+            updateStatus('storageStatus', 'Reading storage...', 'warning');
+            
+            chrome.storage.sync.get(null, (result) => {
+                if (chrome.runtime.lastError) {
+                    updateStatus('storageStatus', 'Storage error: ' + chrome.runtime.lastError.message, 'error');
+                } else {
+                    updateStatus('storageStatus', 'Storage read successfully', 'success');
+                    
+                    const pending = result.pending || [];
+                    let analysis = '<h3>Storage Analysis:</h3>';
+                    
+                    if (pending.length > 0) {
+                        analysis += '<h4>Pending Solutions:</h4>';
+                        pending.forEach((item, index) => {
+                            const isCorrect = item.tag === 'Array';
+                            analysis += `
+                                <div style="margin: 10px 0; padding: 10px; background: ${isCorrect ? '#10b981' : '#ef4444'}; border-radius: 4px;">
+                                    <strong>${item.title}</strong><br>
+                                    Current tag: "${item.tag}"<br>
+                                    Expected: "Array"<br>
+                                    Status: ${isCorrect ? 'CORRECT ✓' : 'WRONG ✗'}
+                                </div>
+                            `;
+                        });
+                    } else {
+                        analysis += '<p>No pending solutions found.</p>';
+                    }
+                    
+                    analysis += '<h4>Full Storage Data:</h4><pre>' + JSON.stringify(result, null, 2) + '</pre>';
+                    
+                    showData('storageData', analysis);
+                }
+            });
+        }
+
+        // Auto-check if extension is available
+        if (typeof chrome !== 'undefined' && chrome.runtime) {
+            console.log('[Debug] Extension detected');
+        } else {
+            alert('Extension not detected. Make sure Leet2Git is installed and this page is opened from an extension context.');
+        }
+    </script>
+</body>
+</html>

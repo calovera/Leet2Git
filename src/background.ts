@@ -209,15 +209,20 @@ async function processAcceptedSubmission(submissionId, tabId, data = null) {
     
     // Fix: Properly prioritize topicTags over categoryTitle
     let tag = "Algorithms"; // Default fallback
+    
+    console.log(`[Leet2Git] DEBUG - Processing metadata for ${tabInfo.slug}:`, JSON.stringify(metadata, null, 2));
+    
     if (metadata?.topicTags && Array.isArray(metadata.topicTags) && metadata.topicTags.length > 0 && metadata.topicTags[0]?.name) {
       tag = metadata.topicTags[0].name;
-      console.log(`[Leet2Git] Using topicTag: ${tag}`);
+      console.log(`[Leet2Git] SUCCESS - Using topicTag: ${tag}`);
     } else if (metadata?.categoryTitle) {
       tag = metadata.categoryTitle;
-      console.log(`[Leet2Git] Using categoryTitle as fallback: ${tag}`);
+      console.log(`[Leet2Git] FALLBACK - Using categoryTitle: ${tag}`);
     } else {
-      console.log(`[Leet2Git] Using default tag: ${tag}`);
+      console.log(`[Leet2Git] DEFAULT - Using default tag: ${tag}`);
     }
+    
+    console.log(`[Leet2Git] FINAL TAG SELECTED: ${tag}`);
     
     const solutionPayload = {
       id: `${tabInfo.slug}-${Date.now()}`,
@@ -655,6 +660,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         topicTags: message.data.topicTags
       };
       
+      console.log(`[Leet2Git] GraphQL data received:`, JSON.stringify(questionMeta, null, 2));
       cacheQuestionMeta(questionMeta);
       
       if (sender.tab?.id) {
@@ -686,6 +692,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       break;
     case "updateConfig":
       handleUpdateConfig(message.payload, sendResponse);
+      break;
+    case "updateBadge":
+      updateBadge();
+      sendResponse({ success: true });
       break;
     default:
       console.warn("Unknown message type:", message.type);

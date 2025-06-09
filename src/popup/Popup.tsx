@@ -357,6 +357,9 @@ const PushSection = ({
       // Update storage
       await chrome.storage.sync.set({ pending: updatedPending });
 
+      // Update badge count immediately
+      chrome.runtime.sendMessage({ type: 'updateBadge' });
+
       // Refresh data to update UI
       fetchData();
     } catch (error) {
