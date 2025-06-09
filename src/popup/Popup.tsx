@@ -695,82 +695,39 @@ const SettingsSection = ({ auth, config }: { auth: GitHubAuth | null, config: Re
 
 const Popup: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'home' | 'push' | 'settings'>('home');
-  const [homeData, setHomeData] = useState<HomeData | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string>('');
-
+  const [homeData, setHomeData] = useState<HomeData>({
+    stats: {
+      streak: 0,
+      counts: { easy: 0, medium: 0, hard: 0 },
+      recentSolves: []
+    },
+    pending: [],
+    auth: null,
+    config: {
+      owner: '',
+      repo: 'leetcode-solutions',
+      branch: 'main',
+      private: false,
+      folderStructure: 'topic' as 'topic',
+      includeDescription: true,
+      includeTestCases: false
+    }
+  });
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchData = () => {
       try {
-        const response = await new Promise<any>((resolve, reject) => {
-          chrome.runtime.sendMessage({ type: 'GET_HOME_DATA' }, (response) => {
-            if (chrome.runtime.lastError) {
-              reject(new Error(chrome.runtime.lastError.message));
-            } else {
-              resolve(response);
-            }
-          });
+        chrome.runtime.sendMessage({ type: 'GET_HOME_DATA' }, (response) => {
+          if (response && response.success && response.data) {
+            setHomeData(response.data);
+          }
         });
-        
-        if (response && response.success) {
-          setHomeData(response.data);
-        } else {
-          setError(response?.error || 'Failed to load data');
-        }
       } catch (error) {
         console.error('Failed to fetch home data:', error);
-        setError('Failed to connect to extension');
-      } finally {
-        setLoading(false);
       }
     };
 
     fetchData();
   }, []);
-
-  if (loading) {
-    return (
-      <div style={{
-        width: '380px',
-        height: '500px',
-        background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4c1d95 100%)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: '#ffffff',
-        fontSize: '14px',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-      }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ marginBottom: '12px', fontSize: '24px' }}>⚡</div>
-          <div>Loading...</div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div style={{
-        width: '380px',
-        height: '500px',
-        background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4c1d95 100%)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: '#ffffff',
-        fontSize: '14px',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-        padding: '20px',
-        textAlign: 'center'
-      }}>
-        <div>
-          <div style={{ marginBottom: '12px', fontSize: '24px' }}>❌</div>
-          <div>{error}</div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div style={{
