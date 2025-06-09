@@ -207,11 +207,17 @@ const HomeSection = ({ stats }: { stats: Stats }) => {
   );
 };
 
-const PushSection = ({ pending }: { pending: PendingItem[] }) => {
+const PushSection = ({ pending, auth }: { pending: PendingItem[], auth: GitHubAuth | null }) => {
   const [isPushing, setIsPushing] = useState(false);
   const [pushStatus, setPushStatus] = useState<string>('');
 
   const handleSync = async () => {
+    if (!auth || !auth.connected) {
+      setPushStatus('Please connect to GitHub first in Settings tab');
+      setTimeout(() => setPushStatus(''), 3000);
+      return;
+    }
+
     setIsPushing(true);
     setPushStatus('Syncing solutions to GitHub...');
     
@@ -233,30 +239,32 @@ const PushSection = ({ pending }: { pending: PendingItem[] }) => {
     setTimeout(() => setPushStatus(''), 3000);
   };
 
+  const isDisabled = isPushing || !auth?.connected;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       {/* Sync Button */}
       <button
         onClick={handleSync}
-        disabled={isPushing}
+        disabled={isDisabled}
         style={{
-          background: isPushing 
+          background: isDisabled 
             ? 'rgba(255, 255, 255, 0.08)' 
             : 'rgba(139, 92, 246, 0.9)',
-          color: '#ffffff',
+          color: isDisabled ? 'rgba(255, 255, 255, 0.5)' : '#ffffff',
           border: 'none',
           borderRadius: '12px',
           padding: '16px 24px',
           fontSize: '14px',
           fontWeight: '600',
-          cursor: isPushing ? 'not-allowed' : 'pointer',
+          cursor: isDisabled ? 'not-allowed' : 'pointer',
           transition: 'all 0.2s ease',
-          opacity: isPushing ? 0.7 : 1,
+          opacity: isDisabled ? 0.6 : 1,
           backdropFilter: 'blur(12px)',
-          boxShadow: '0 4px 16px rgba(139, 92, 246, 0.3)'
+          boxShadow: isDisabled ? 'none' : '0 4px 16px rgba(139, 92, 246, 0.3)'
         }}
       >
-        {isPushing ? 'Syncing...' : 'Sync to GitHub'}
+        {isPushing ? 'Syncing...' : !auth?.connected ? 'Connect GitHub First' : 'Sync to GitHub'}
       </button>
 
       {/* Status Message */}
@@ -353,8 +361,6 @@ const SettingsSection = ({ auth, config }: { auth: GitHubAuth | null, config: Re
   const [branch, setBranch] = useState(config?.branch || 'main');
   const [isPrivate, setIsPrivate] = useState<boolean>(config?.private || false);
   const [folderStructure, setFolderStructure] = useState<'difficulty' | 'topic' | 'flat'>(config?.folderStructure || 'topic');
-  const [includeDescription, setIncludeDescription] = useState<boolean>(config?.includeDescription || true);
-  const [includeTestCases, setIncludeTestCases] = useState<boolean>(config?.includeTestCases || false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [verifyStatus, setVerifyStatus] = useState<string>('');
   const [isSaving, setIsSaving] = useState(false);
@@ -396,9 +402,9 @@ const SettingsSection = ({ auth, config }: { auth: GitHubAuth | null, config: Re
       repo: repoName.trim(),
       branch: branch.trim(),
       private: isPrivate,
-      folderStructure,
-      includeDescription,
-      includeTestCases
+      folderStructure: folderStructure,
+      includeDescription: true,
+      includeTestCases: false
     };
 
     if (!newConfig.owner || !newConfig.repo) {
@@ -631,33 +637,7 @@ const SettingsSection = ({ auth, config }: { auth: GitHubAuth | null, config: Re
             </select>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <input
-                type="checkbox"
-                id="include-description"
-                checked={includeDescription}
-                onChange={(e) => setIncludeDescription(e.target.checked)}
-                style={{ width: '14px', height: '14px' }}
-              />
-              <label htmlFor="include-description" style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.7)' }}>
-                Include Problem Description
-              </label>
-            </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <input
-                type="checkbox"
-                id="include-test-cases"
-                checked={includeTestCases}
-                onChange={(e) => setIncludeTestCases(e.target.checked)}
-                style={{ width: '14px', height: '14px' }}
-              />
-              <label htmlFor="include-test-cases" style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.7)' }}>
-                Include Test Cases
-              </label>
-            </div>
-          </div>
 
           <button
             onClick={handleSaveConfig}
@@ -741,14 +721,14 @@ const Popup: React.FC = () => {
     }}>
       {/* Header */}
       <div style={{
-        padding: '20px 20px 16px 20px',
+        padding: '16px 16px 12px 16px',
         borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
       }}>
         <div style={{
           display: 'flex',
           alignItems: 'center',
           gap: '12px',
-          marginBottom: '16px'
+          marginBottom: '12px'
         }}>
           <div style={{
             width: '32px',
@@ -811,15 +791,16 @@ const Popup: React.FC = () => {
       {/* Content */}
       <div style={{
         flex: 1,
-        padding: '20px',
-        overflowY: 'auto'
+        padding: '16px',
+        overflowY: 'auto',
+        maxHeight: 'calc(500px - 120px)'
       }}>
         {activeTab === 'home' && homeData && (
           <HomeSection stats={homeData.stats} />
         )}
         
         {activeTab === 'push' && homeData && (
-          <PushSection pending={homeData.pending} />
+          <PushSection pending={homeData.pending} auth={homeData.auth} />
         )}
         
         {activeTab === 'settings' && homeData && (
