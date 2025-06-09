@@ -17,8 +17,8 @@ export default defineConfig({
     rollupOptions: {
       input: {
         background: path.resolve(__dirname, "background.js"),
-        popup: path.resolve(__dirname, "src/popup/index.html"),
-        options: path.resolve(__dirname, "src/options/index.html"),
+        popup: path.resolve(__dirname, "src/popup/popup.tsx"),
+        options: path.resolve(__dirname, "src/options/main.tsx"),
         content: path.resolve(__dirname, "src/content.ts"),
         leetcodeHook: path.resolve(__dirname, "src/content/leetcode-hook.ts"),
       },
