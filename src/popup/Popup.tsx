@@ -48,11 +48,26 @@ const HomeStats = ({ stats }: { stats: Stats }) => {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl bg-white shadow-sm ring-1 ring-slate-200 p-4">
+      <div style={{
+        borderRadius: '12px',
+        backgroundColor: '#ffffff',
+        boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05), 0 0 0 1px #e2e8f0',
+        padding: '16px'
+      }}>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-2">
-            <div className="flex items-center space-x-1 bg-indigo-600 text-white px-3 py-1.5 rounded-full text-sm font-medium">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              backgroundColor: '#4f46e5',
+              color: '#ffffff',
+              padding: '6px 12px',
+              borderRadius: '9999px',
+              fontSize: '14px',
+              fontWeight: '500'
+            }}>
+              <svg style={{width: '16px', height: '16px'}} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z" />
               </svg>
@@ -61,7 +76,12 @@ const HomeStats = ({ stats }: { stats: Stats }) => {
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-3 mb-4">
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, 1fr)',
+          gap: '12px',
+          marginBottom: '16px'
+        }}>
           <div className="text-center">
             <div className="bg-green-100 text-green-800 px-3 py-2 rounded-lg">
               <div className="text-lg font-semibold">{stats.counts.easy}</div>
@@ -303,7 +323,15 @@ export default function Popup() {
       <div className="px-4 py-3 border-b border-slate-200">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <div className="w-6 h-6 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-md flex items-center justify-center">
+            <div style={{
+              width: '24px',
+              height: '24px',
+              background: 'linear-gradient(135deg, #4f46e5, #9333ea)',
+              borderRadius: '6px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
               <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
               </svg>
