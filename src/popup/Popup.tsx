@@ -82,47 +82,109 @@ const HomeStats = ({ stats }: { stats: Stats }) => {
           gap: '12px',
           marginBottom: '16px'
         }}>
-          <div className="text-center">
-            <div className="bg-green-100 text-green-800 px-3 py-2 rounded-lg">
-              <div className="text-lg font-semibold">{stats.counts.easy}</div>
-              <div className="text-xs">Easy</div>
+          <div style={{textAlign: 'center'}}>
+            <div style={{
+              backgroundColor: '#dcfce7',
+              color: '#166534',
+              padding: '8px 12px',
+              borderRadius: '8px'
+            }}>
+              <div style={{fontSize: '18px', fontWeight: '600'}}>{stats.counts.easy}</div>
+              <div style={{fontSize: '12px'}}>Easy</div>
             </div>
           </div>
-          <div className="text-center">
-            <div className="bg-yellow-100 text-yellow-800 px-3 py-2 rounded-lg">
-              <div className="text-lg font-semibold">{stats.counts.medium}</div>
-              <div className="text-xs">Medium</div>
+          <div style={{textAlign: 'center'}}>
+            <div style={{
+              backgroundColor: '#fef3c7',
+              color: '#92400e',
+              padding: '8px 12px',
+              borderRadius: '8px'
+            }}>
+              <div style={{fontSize: '18px', fontWeight: '600'}}>{stats.counts.medium}</div>
+              <div style={{fontSize: '12px'}}>Medium</div>
             </div>
           </div>
-          <div className="text-center">
-            <div className="bg-red-100 text-red-800 px-3 py-2 rounded-lg">
-              <div className="text-lg font-semibold">{stats.counts.hard}</div>
-              <div className="text-xs">Hard</div>
+          <div style={{textAlign: 'center'}}>
+            <div style={{
+              backgroundColor: '#fee2e2',
+              color: '#991b1b',
+              padding: '8px 12px',
+              borderRadius: '8px'
+            }}>
+              <div style={{fontSize: '18px', fontWeight: '600'}}>{stats.counts.hard}</div>
+              <div style={{fontSize: '12px'}}>Hard</div>
             </div>
           </div>
         </div>
 
         <div>
-          <h3 className="text-sm font-medium text-slate-900 mb-3 flex items-center">
-            <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <h3 style={{
+            fontSize: '14px', 
+            fontWeight: '500', 
+            color: '#0f172a', 
+            marginBottom: '12px', 
+            display: 'flex', 
+            alignItems: 'center'
+          }}>
+            <svg style={{width: '16px', height: '16px', marginRight: '6px'}} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
             </svg>
             Recent Solves
           </h3>
           
-          <div className="max-h-40 overflow-auto space-y-2">
+          <div style={{
+            maxHeight: '160px',
+            overflowY: 'auto',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px'
+          }}>
             {stats.recentSolves.slice(0, 5).map((solve) => (
-              <div key={solve.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 transition-colors">
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-slate-900 truncate">
+              <div key={solve.id} style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '8px',
+                borderRadius: '8px',
+                backgroundColor: '#f8fafc',
+                transition: 'background-color 0.2s'
+              }}>
+                <div style={{flex: '1', minWidth: '0'}}>
+                  <div style={{
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    color: '#0f172a',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap'
+                  }}>
                     {solve.title}
                   </div>
-                  <div className="flex items-center mt-1 space-x-2">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getLanguageColor(solve.language)}`}>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    marginTop: '4px',
+                    gap: '8px'
+                  }}>
+                    <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      fontSize: '12px',
+                      fontWeight: '500',
+                      backgroundColor: '#3b82f6',
+                      color: '#ffffff'
+                    }}>
                       {solve.language}
                     </span>
-                    <div className="flex items-center text-xs text-slate-500">
-                      <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      fontSize: '12px',
+                      color: '#64748b'
+                    }}>
+                      <svg style={{width: '12px', height: '12px', marginRight: '4px'}} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                       {formatTimeAgo(solve.timestamp)}
@@ -134,15 +196,32 @@ const HomeStats = ({ stats }: { stats: Stats }) => {
           </div>
         </div>
 
-        <div className="mt-4 pt-4 border-t border-slate-200">
+        <div style={{
+          marginTop: '16px',
+          paddingTop: '16px',
+          borderTop: '1px solid #e2e8f0'
+        }}>
           <a
             href="https://leetcode.com"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center justify-center w-full px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-lg transition-colors hover:shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '100%',
+              padding: '8px 16px',
+              backgroundColor: '#f1f5f9',
+              color: '#334155',
+              fontSize: '14px',
+              fontWeight: '500',
+              borderRadius: '8px',
+              textDecoration: 'none',
+              transition: 'background-color 0.2s'
+            }}
           >
             Open LeetCode
-            <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg style={{width: '16px', height: '16px', marginLeft: '8px'}} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
             </svg>
           </a>
@@ -319,10 +398,10 @@ export default function Popup() {
   }
 
   return (
-    <div className="w-80 bg-white">
-      <div className="px-4 py-3 border-b border-slate-200">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
+    <div style={{width: '320px', backgroundColor: '#ffffff'}}>
+      <div style={{padding: '12px 16px', borderBottom: '1px solid #e2e8f0'}}>
+        <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
+          <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
             <div style={{
               width: '24px',
               height: '24px',
@@ -336,13 +415,20 @@ export default function Popup() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
               </svg>
             </div>
-            <h1 className="text-lg font-semibold text-slate-900">Leet2Git</h1>
+            <h1 style={{fontSize: '18px', fontWeight: '600', color: '#0f172a'}}>Leet2Git</h1>
           </div>
           <button 
             onClick={openSettings}
-            className="p-1.5 hover:bg-slate-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            style={{
+              padding: '6px',
+              borderRadius: '6px',
+              backgroundColor: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'background-color 0.2s'
+            }}
           >
-            <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg style={{width: '16px', height: '16px', color: '#64748b'}} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
