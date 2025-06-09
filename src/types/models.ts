@@ -3,11 +3,12 @@ export interface SolutionPayload {
   title: string;
   slug: string;
   difficulty: 'Easy' | 'Medium' | 'Hard';
-  description: string;
+  tag: string;
+  description?: string;
   code: string;
   language: string;
   timestamp: number;
-  status: string;
+  status?: string;
   testCases?: Array<{ input: string; output: string }>;
   submissionId?: string;
   runtime?: string;
@@ -68,6 +69,6 @@ export interface HomeData {
 }
 
 export interface ChromeMessage {
-  type: 'auth' | 'push' | 'getHomeData' | 'solved_dom' | 'updateConfig';
+  type: 'auth' | 'push' | 'getHomeData' | 'solved_dom' | 'updateConfig' | 'graphql_question_data';
   payload?: any;
 }

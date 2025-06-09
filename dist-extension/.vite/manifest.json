@@ -35,19 +35,19 @@
     "src": "src/content/leetcode-hook.ts",
     "isEntry": true
   },
-  "src/options/index.html": {
+  "src/options/main.tsx": {
     "file": "options/index.js",
     "name": "options",
-    "src": "src/options/index.html",
+    "src": "src/options/main.tsx",
     "isEntry": true,
     "imports": [
       "_client.js"
     ]
   },
-  "src/popup/index.html": {
+  "src/popup/popup.tsx": {
     "file": "popup/index.js",
     "name": "popup",
-    "src": "src/popup/index.html",
+    "src": "src/popup/popup.tsx",
     "isEntry": true,
     "imports": [
       "_client.js"
