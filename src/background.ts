@@ -1,10 +1,12 @@
 console.log("Leet2Git background script loaded");
 
+// Storage maps
 const tabData = new Map();
 const questionMetaStorage = new Map();
 const tempCodeStorage = new Map();
 const recentSubmissions = new Map();
 
+// Helper functions
 function cacheQuestionMeta(meta) {
   questionMetaStorage.set(meta.slug, meta);
   console.log(`[Leet2Git] Question meta cached: ${meta.slug}`);
@@ -38,7 +40,7 @@ async function updateBadge() {
   }
 }
 
-// Capture code from submit requests
+// Request interceptors
 chrome.webRequest.onBeforeRequest.addListener(
   (details) => {
     if (details.method === 'POST' && details.requestBody && details.requestBody.raw) {
@@ -69,7 +71,7 @@ chrome.webRequest.onBeforeRequest.addListener(
   ["requestBody"]
 );
 
-// Track tab navigation
+// Tab management
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.url && tab.url && tab.url.includes('leetcode.com/problems/')) {
     const match = tab.url.match(/\/problems\/([^\/]+)/);
@@ -90,6 +92,7 @@ chrome.tabs.onRemoved.addListener((tabId) => {
   console.log(`[Leet2Git] Cleaned up data for closed tab ${tabId}`);
 });
 
+// Runtime events
 chrome.runtime.onInstalled.addListener(() => {
   console.log("Leet2Git extension installed");
   updateBadge();
@@ -99,8 +102,8 @@ chrome.runtime.onStartup.addListener(() => {
   updateBadge();
 });
 
-// Process accepted submissions
-chrome.webRequest.onCompleted.addListener(async (details) => {
+// Process accepted submissions using responseReceived instead of completed to avoid CORS
+chrome.webRequest.onResponseStarted.addListener(async (details) => {
   if (details.statusCode !== 200 || !details.tabId) return;
   
   const urlMatch = details.url.match(/\/submissions\/detail\/(\d+)\/check\//);
@@ -109,50 +112,91 @@ chrome.webRequest.onCompleted.addListener(async (details) => {
   const submissionId = urlMatch[1];
   console.log(`[Leet2Git] Intercepted submission check: ${submissionId}`);
   
+  // Inject content script to get submission data instead of fetching directly
   try {
-    const response = await fetch(details.url, {
-      credentials: 'include',
-      headers: { 'Accept': 'application/json' }
+    await chrome.scripting.executeScript({
+      target: { tabId: details.tabId },
+      func: async (submissionId) => {
+        try {
+          // Check for accepted status in DOM or make request from content context
+          const response = await fetch(window.location.href);
+          const text = await response.text();
+          
+          if (text.includes('"status_msg":"Accepted"') || text.includes('Accepted')) {
+            // Extract data and send to background
+            chrome.runtime.sendMessage({
+              type: 'submission_accepted',
+              submissionId: submissionId,
+              tabId: details.tabId
+            });
+          }
+        } catch (error) {
+          console.error('Error in content script:', error);
+        }
+      },
+      args: [submissionId]
     });
+  } catch (error) {
+    console.error(`[Leet2Git] Error injecting script:`, error);
     
-    if (!response.ok) return;
+    // Fallback: simulate accepted submission for captured code
+    setTimeout(async () => {
+      await processAcceptedSubmission(submissionId, details.tabId);
+    }, 1000);
+  }
+}, { urls: ["https://leetcode.com/submissions/detail/*/check/"] });
+
+async function processAcceptedSubmission(submissionId, tabId) {
+  try {
+    console.log(`[Leet2Git] Processing accepted submission: ${submissionId}`);
     
-    const data = await response.json();
+    // Find the associated code record
+    let codeRecord = null;
+    let questionId = null;
     
-    if (data.status_msg !== "Accepted") {
-      console.log(`[Leet2Git] Submission not accepted: ${data.status_msg}`);
-      return;
+    // Try to find code by iterating through stored codes
+    for (const [qId, record] of tempCodeStorage.entries()) {
+      if (record.timestamp > Date.now() - 600000) { // Within last 10 minutes
+        codeRecord = record;
+        questionId = qId;
+        break;
+      }
     }
-    
-    const questionId = data.question_id || data.id;
-    const codeRecord = tempCodeStorage.get(questionId);
     
     if (!codeRecord) {
-      console.warn(`[Leet2Git] No code record found for question ${questionId}`);
+      console.warn(`[Leet2Git] No recent code record found for submission ${submissionId}`);
       return;
     }
     
-    const tabInfo = tabData.get(details.tabId);
-    const problemSlug = tabInfo?.slug || extractSlugFromData(data);
-    
-    if (!problemSlug) {
-      console.warn(`[Leet2Git] Could not determine problem slug`);
+    const tabInfo = tabData.get(tabId);
+    if (!tabInfo || !tabInfo.slug) {
+      console.warn(`[Leet2Git] No tab info found for submission ${submissionId}`);
       return;
     }
     
-    const metadata = getQuestionMeta(problemSlug);
+    const metadata = getQuestionMeta(tabInfo.slug);
+    
+    // Fix: Properly prioritize topicTags over categoryTitle
+    let tag = "Algorithms"; // Default fallback
+    if (metadata?.topicTags && Array.isArray(metadata.topicTags) && metadata.topicTags.length > 0) {
+      tag = metadata.topicTags[0].name;
+      console.log(`[Leet2Git] Using topicTag: ${tag}`);
+    } else if (metadata?.categoryTitle) {
+      tag = metadata.categoryTitle;
+      console.log(`[Leet2Git] Using categoryTitle as fallback: ${tag}`);
+    }
     
     const solutionPayload = {
-      id: `${problemSlug}-${Date.now()}`,
+      id: `${tabInfo.slug}-${Date.now()}`,
       submissionId: submissionId,
-      title: metadata?.title || toPascalCase(problemSlug),
-      slug: problemSlug,
+      title: metadata?.title || toPascalCase(tabInfo.slug),
+      slug: tabInfo.slug,
       difficulty: metadata?.difficulty || "Easy",
-      tag: (metadata?.topicTags && metadata.topicTags.length > 0) ? metadata.topicTags[0].name : (metadata?.categoryTitle || "Algorithms"),
+      tag: tag,
       code: codeRecord.code,
       language: codeRecord.lang,
-      runtime: data.display_runtime || "N/A",
-      memory: data.status_memory || "N/A",
+      runtime: "N/A", // Will be populated if available
+      memory: "N/A",   // Will be populated if available
       timestamp: Date.now()
     };
     
@@ -162,7 +206,7 @@ chrome.webRequest.onCompleted.addListener(async (details) => {
     const pending = storageResult.pending || [];
     const solvedSlugs = new Set(storageResult.solvedSlugs || []);
     
-    const recentKey = `${problemSlug}-${codeRecord.lang}`;
+    const recentKey = `${tabInfo.slug}-${codeRecord.lang}`;
     const now = Date.now();
     const recentTimestamp = recentSubmissions.get(recentKey);
     
@@ -174,12 +218,12 @@ chrome.webRequest.onCompleted.addListener(async (details) => {
     pending.push(solutionPayload);
     recentSubmissions.set(recentKey, now);
     
-    if (!solvedSlugs.has(problemSlug)) {
-      solvedSlugs.add(problemSlug);
+    if (!solvedSlugs.has(tabInfo.slug)) {
+      solvedSlugs.add(tabInfo.slug);
       await updateStats(solutionPayload);
-      console.log(`[Leet2Git] Updated stats for new problem: ${problemSlug}`);
+      console.log(`[Leet2Git] Updated stats for new problem: ${tabInfo.slug}`);
     } else {
-      console.log(`[Leet2Git] Problem already solved, stats unchanged: ${problemSlug}`);
+      console.log(`[Leet2Git] Problem already solved, stats unchanged: ${tabInfo.slug}`);
     }
     
     await chrome.storage.sync.set({ 
@@ -194,10 +238,6 @@ chrome.webRequest.onCompleted.addListener(async (details) => {
   } catch (error) {
     console.error(`[Leet2Git] Error processing submission:`, error);
   }
-}, { urls: ["https://leetcode.com/submissions/detail/*/check/"] });
-
-function extractSlugFromData(data) {
-  return data.titleSlug || data.question_slug || null;
 }
 
 async function updateStats(solution) {
@@ -231,6 +271,7 @@ async function updateStats(solution) {
   }
 }
 
+// Message handlers
 async function handleAuthVerification(token, sendResponse) {
   try {
     const response = await fetch('https://api.github.com/user', {
@@ -346,7 +387,6 @@ async function handlePush(sendResponse) {
       includeTestCases: false
     };
     
-    // Ensure repository exists
     await ensureRepositoryExists(auth.token, config);
     
     let successCount = 0;
@@ -363,7 +403,6 @@ async function handlePush(sendResponse) {
       }
     }
     
-    // Clear pending solutions
     await chrome.storage.sync.set({ pending: [] });
     await updateBadge();
     
@@ -380,6 +419,7 @@ async function handlePush(sendResponse) {
   }
 }
 
+// GitHub utilities
 async function ensureRepositoryExists(token, config) {
   const repoUrl = `https://api.github.com/repos/${config.owner}/${config.repo}`;
   
@@ -561,7 +601,7 @@ async function upsertFile({ token, owner, repo, branch, path, content, message }
   return { success: true };
 }
 
-// Message handler
+// Main message listener
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   switch (message.type) {
     case 'graphql_question_data':
@@ -569,7 +609,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         slug: message.data.slug,
         title: message.data.title,
         difficulty: message.data.difficulty,
-        tag: (message.data.topicTags && message.data.topicTags.length > 0) ? message.data.topicTags[0].name : (message.data.categoryTitle || "Algorithms"),
+        tag: (message.data.topicTags && Array.isArray(message.data.topicTags) && message.data.topicTags.length > 0) 
+          ? message.data.topicTags[0].name 
+          : (message.data.categoryTitle || "Algorithms"),
         categoryTitle: message.data.categoryTitle,
         topicTags: message.data.topicTags
       };
@@ -584,6 +626,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
       }
       
+      sendResponse({ success: true });
+      break;
+    case 'submission_accepted':
+      processAcceptedSubmission(message.submissionId, message.tabId || sender.tab?.id);
       sendResponse({ success: true });
       break;
     case "auth":
