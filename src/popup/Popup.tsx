@@ -714,13 +714,13 @@ const Popup: React.FC = () => {
   return (
     <div style={{
       width: '380px',
-      height: '600px',
+      minHeight: '500px',
+      maxHeight: '600px',
       background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4c1d95 100%)',
       display: 'flex',
       flexDirection: 'column',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      position: 'relative',
-      overflow: 'hidden'
+      position: 'relative'
     }}>
       {/* Header */}
       <div style={{
