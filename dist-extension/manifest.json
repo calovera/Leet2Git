@@ -13,7 +13,7 @@
     "type": "module"
   },
   "action": {
-    "default_popup": "../test-popup.html",
+    "default_popup": "src/popup/index.html",
     "default_title": "Leet2Git - Sync LeetCode to GitHub"
   },
   "options_page": "src/options/index.html",

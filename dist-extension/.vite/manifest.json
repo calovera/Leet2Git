@@ -5,9 +5,9 @@
     "src": "../../../@crx/manifest",
     "isEntry": true
   },
-  "_github.js": {
-    "file": "assets/github.js",
-    "name": "github"
+  "_client.js": {
+    "file": "assets/client.js",
+    "name": "client"
   },
   "background.js": {
     "file": "background.js",
@@ -41,7 +41,7 @@
     "src": "src/options/index.html",
     "isEntry": true,
     "imports": [
-      "_github.js"
+      "_client.js"
     ]
   },
   "src/popup/index.html": {
@@ -50,7 +50,7 @@
     "src": "src/popup/index.html",
     "isEntry": true,
     "imports": [
-      "_github.js"
+      "_client.js"
     ],
     "css": [
       "assets/popup.css"
