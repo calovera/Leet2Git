@@ -20,7 +20,7 @@
     {
       "js": ["content.js"],
       "matches": ["https://leetcode.com/*"],
-      "run_at": "document_end"
+      "run_at": "document_idle"
     }
   ],
   "permissions": [

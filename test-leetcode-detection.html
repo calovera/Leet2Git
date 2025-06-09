@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LeetCode Detection Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .test-section {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .debug-output {
+            background: #1a1a1a;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>LeetCode Detection Test Suite</h1>
+    <p>This page tests the LeetCode content script detection capabilities.</p>
+
+    <div class="test-section">
+        <h2>Extension Status</h2>
+        <div id="extensionStatus" class="status warning">Checking extension...</div>
+        <button onclick="checkExtension()">Check Extension</button>
+    </div>
+
+    <div class="test-section">
+        <h2>Content Script Test</h2>
+        <div id="contentStatus" class="status warning">Content script not tested</div>
+        <button onclick="testContentScript()">Test Content Script</button>
+        <button onclick="simulateSubmission()">Simulate LeetCode Submission</button>
+    </div>
+
+    <div class="test-section">
+        <h2>Manual DOM Debug</h2>
+        <p>Run this on a LeetCode problem page to debug DOM selectors:</p>
+        <button onclick="copyDebugScript()">Copy Debug Script</button>
+        <pre id="debugScript" style="font-size: 12px;">// Paste this in LeetCode console
+console.log('=== LeetCode DOM Debug ===');
+
+// Test title selectors
+const titleSelectors = [
+  '[data-cy="question-title"]', 'h1[data-cy="question-title"]',
+  'h1[class*="title"]', '.question-title', '[class*="question-title"]',
+  '.css-v3d350', 'h1.text-title-large', 'h1.text-lg', 'h1'
+];
+
+console.log('Title elements found:');
+titleSelectors.forEach(sel => {
+  const el = document.querySelector(sel);
+  if (el) console.log(sel + ':', el.textContent?.trim());
+});
+
+// Test code editor
+console.log('\\nCode editor elements:');
+const codeSelectors = [
+  '.monaco-editor .view-lines', '.CodeMirror-code', 
+  'textarea[data-cy="code-editor"]', '#editor textarea'
+];
+
+codeSelectors.forEach(sel => {
+  const el = document.querySelector(sel);
+  if (el) console.log(sel + ':', el.tagName, el.textContent?.length + ' chars');
+});
+
+// Test Monaco API
+if (window.monaco?.editor) {
+  const models = window.monaco.editor.getModels();
+  console.log('\\nMonaco models:', models.length);
+  if (models.length > 0) {
+    console.log('Code length:', models[0].getValue().length);
+  }
+}
+
+console.log('=== End Debug ===');</pre>
+    </div>
+
+    <div class="test-section">
+        <h2>Real-time Log Output</h2>
+        <div id="logOutput" class="debug-output">Console logs will appear here...</div>
+        <button onclick="clearLogs()">Clear Logs</button>
+    </div>
+
+    <script>
+        let logBuffer = [];
+
+        // Intercept console.log to capture extension logs
+        const originalLog = console.log;
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            
+            // Capture Leet2Git logs
+            const logText = args.join(' ');
+            if (logText.includes('[Leet2Git]') || logText.includes('Leet2Git')) {
+                logBuffer.push(new Date().toLocaleTimeString() + ': ' + logText);
+                updateLogDisplay();
+            }
+        };
+
+        function updateLogDisplay() {
+            const logDiv = document.getElementById('logOutput');
+            logDiv.innerHTML = logBuffer.slice(-20).join('<br>') || 'No logs yet...';
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function clearLogs() {
+            logBuffer = [];
+            updateLogDisplay();
+        }
+
+        function updateStatus(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `status ${type}`;
+        }
+
+        function checkExtension() {
+            if (typeof chrome !== 'undefined' && chrome.runtime) {
+                updateStatus('extensionStatus', 'Extension is installed and active', 'success');
+                
+                // Test background communication
+                chrome.runtime.sendMessage({ type: 'getHomeData' }, (response) => {
+                    if (response) {
+                        console.log('[Test] Background script responding:', response);
+                    } else {
+                        console.log('[Test] No response from background script');
+                    }
+                });
+            } else {
+                updateStatus('extensionStatus', 'Extension not installed or not active', 'error');
+            }
+        }
+
+        function testContentScript() {
+            updateStatus('contentStatus', 'Testing content script...', 'warning');
+            
+            // Check if our detector is available
+            if (typeof window.leetCodeDetector !== 'undefined') {
+                updateStatus('contentStatus', 'Content script loaded and detector available', 'success');
+                console.log('[Test] Detector object:', window.leetCodeDetector);
+                
+                // Test detector methods
+                try {
+                    const title = window.leetCodeDetector.extractTitle();
+                    const code = window.leetCodeDetector.extractCode();
+                    console.log('[Test] Title extraction:', title);
+                    console.log('[Test] Code extraction:', code ? code.length + ' chars' : 'failed');
+                } catch (error) {
+                    console.log('[Test] Detector test error:', error);
+                }
+            } else {
+                updateStatus('contentStatus', 'Content script not loaded or detector not available', 'error');
+            }
+        }
+
+        function simulateSubmission() {
+            console.log('[Test] Simulating LeetCode submission...');
+            
+            const testSolution = {
+                id: `test-simulation-${Date.now()}`,
+                title: "Two Sum",
+                slug: "two-sum",
+                difficulty: "Easy",
+                description: "Test simulation of LeetCode problem",
+                code: `function twoSum(nums, target) {
+    const map = new Map();
+    for (let i = 0; i < nums.length; i++) {
+        const complement = target - nums[i];
+        if (map.has(complement)) {
+            return [map.get(complement), i];
+        }
+        map.set(nums[i], i);
+    }
+    return [];
+}`,
+                language: "JavaScript",
+                timestamp: Date.now()
+            };
+
+            if (chrome && chrome.runtime) {
+                chrome.runtime.sendMessage({
+                    type: 'solved_dom',
+                    payload: testSolution
+                }, (response) => {
+                    if (response?.success) {
+                        console.log('[Test] Simulation successful - solution added');
+                        updateStatus('contentStatus', 'Simulation successful - check popup', 'success');
+                    } else {
+                        console.log('[Test] Simulation failed:', response?.error);
+                        updateStatus('contentStatus', 'Simulation failed: ' + (response?.error || 'unknown'), 'error');
+                    }
+                });
+            } else {
+                console.log('[Test] Chrome runtime not available');
+                updateStatus('contentStatus', 'Chrome runtime not available', 'error');
+            }
+        }
+
+        function copyDebugScript() {
+            const script = document.getElementById('debugScript').textContent;
+            navigator.clipboard.writeText(script).then(() => {
+                alert('Debug script copied to clipboard! Paste it in LeetCode console.');
+            });
+        }
+
+        // Auto-check extension on load
+        window.addEventListener('load', () => {
+            setTimeout(checkExtension, 500);
+        });
+
+        // Monitor for extension installation
+        let checkCount = 0;
+        const checkInterval = setInterval(() => {
+            if (typeof chrome !== 'undefined' && chrome.runtime) {
+                clearInterval(checkInterval);
+                checkExtension();
+            } else if (++checkCount > 10) {
+                clearInterval(checkInterval);
+                updateStatus('extensionStatus', 'Extension not detected after 10 seconds', 'error');
+            }
+        }, 1000);
+    </script>
+</body>
+</html>

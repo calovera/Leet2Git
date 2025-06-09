@@ -1,4 +1,4 @@
-// Leet2Git Content Script for LeetCode
+// Leet2Git Content Script - Updated for Current LeetCode Interface
 console.log("Leet2Git content script loaded on LeetCode");
 
 class LeetCodeDetector {
@@ -6,22 +6,53 @@ class LeetCodeDetector {
     this.observer = null;
     this.isObserving = false;
     this.lastSubmissionTime = 0;
+    this.debugMode = true;
     this.init();
   }
 
   init() {
+    this.log("Initializing LeetCode detector...");
     if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', () => this.setupObserver());
+      document.addEventListener('DOMContentLoaded', () => this.setupDetection());
     } else {
-      this.setupObserver();
+      this.setupDetection();
     }
   }
 
-  setupObserver() {
+  log(message, data = null) {
+    if (this.debugMode) {
+      console.log(`[Leet2Git] ${message}`, data || '');
+    }
+  }
+
+  setupDetection() {
+    this.log("Setting up submission detection...");
+    
+    // Method 1: Watch for submission result modals
+    this.setupMutationObserver();
+    
+    // Method 2: Intercept network requests (backup)
+    this.setupNetworkInterception();
+    
+    // Method 3: Watch for URL changes (for SPA navigation)
+    this.setupURLWatcher();
+    
+    this.log("Detection methods initialized");
+  }
+
+  setupMutationObserver() {
     this.observer = new MutationObserver((mutations) => {
       mutations.forEach(mutation => {
         if (mutation.type === 'childList') {
-          this.checkForAcceptedModal();
+          // Check for submission result
+          this.checkForSubmissionResult();
+          
+          // Check for newly added elements that might contain results
+          mutation.addedNodes.forEach(node => {
+            if (node.nodeType === Node.ELEMENT_NODE) {
+              this.checkElementForSubmissionResult(node);
+            }
+          });
         }
       });
     });
@@ -35,42 +66,96 @@ class LeetCodeDetector {
         childList: true,
         subtree: true,
         attributes: true,
-        attributeFilter: ['class', 'data-state']
+        attributeFilter: ['class', 'data-state', 'data-testid']
       });
       this.isObserving = true;
-      console.log("Started observing DOM for LeetCode submissions");
+      this.log("Started DOM observation");
     }
   }
 
-  stopObserving() {
-    if (this.observer && this.isObserving) {
-      this.observer.disconnect();
-      this.isObserving = false;
-      console.log("Stopped observing DOM");
-    }
+  setupNetworkInterception() {
+    // Override fetch to catch submission responses
+    const originalFetch = window.fetch;
+    window.fetch = async (...args) => {
+      const response = await originalFetch(...args);
+      
+      if (args[0] && typeof args[0] === 'string') {
+        const url = args[0];
+        if (url.includes('/submit/') || url.includes('/api/submissions/')) {
+          this.log("Detected submission API call", url);
+          // Wait a bit for DOM to update, then check for results
+          setTimeout(() => this.checkForSubmissionResult(), 2000);
+        }
+      }
+      
+      return response;
+    };
   }
 
-  checkForAcceptedModal() {
-    // Throttle checks to prevent spam
+  setupURLWatcher() {
+    let currentURL = window.location.href;
+    
+    const checkURL = () => {
+      if (window.location.href !== currentURL) {
+        currentURL = window.location.href;
+        this.log("URL changed", currentURL);
+        
+        // Re-setup detection after navigation
+        setTimeout(() => this.setupDetection(), 1000);
+      }
+    };
+    
+    setInterval(checkURL, 1000);
+  }
+
+  checkForSubmissionResult() {
+    // Throttle checks
     const now = Date.now();
-    if (now - this.lastSubmissionTime < 2000) return;
-
-    // Check for accepted submission indicators
+    if (now - this.lastSubmissionTime < 1000) return;
+    
+    if (!this.isOnProblemPage()) return;
+    
+    // Updated selectors for current LeetCode interface (2024)
     const successSelectors = [
+      // Primary selectors
       '[data-e2e-locator="submission-result"]',
+      '[data-testid="submission-result"]',
+      
+      // Text-based selectors
       '.text-green-500',
+      '.text-green-600', 
+      '.text-green-dark',
       '[class*="text-green"]',
+      
+      // Status indicators
       '.submission-status',
-      '[data-cy="submission-result"]'
+      '[class*="submission-result"]',
+      '[class*="result-"]',
+      
+      // Modal/dialog selectors  
+      '[role="dialog"] [class*="green"]',
+      '.modal [class*="success"]',
+      
+      // Generic success patterns
+      '[class*="success"]',
+      '[class*="accepted"]',
+      '[class*="correct"]'
     ];
 
     let acceptedElement = null;
+    
     for (const selector of successSelectors) {
       try {
         const elements = document.querySelectorAll(selector);
         for (const element of elements) {
-          if (element.textContent?.includes("Accepted")) {
+          const text = element.textContent?.toLowerCase() || '';
+          if (text.includes('accepted') || text.includes('success')) {
             acceptedElement = element;
+            this.log("Found accepted submission element", {
+              selector,
+              text: element.textContent?.trim(),
+              element
+            });
             break;
           }
         }
@@ -80,135 +165,82 @@ class LeetCodeDetector {
       }
     }
 
-    // Also check for generic success indicators
-    if (!acceptedElement) {
-      const successElements = document.querySelectorAll('[class*="success"], [class*="green"], .text-green-500, .text-success');
-      for (const element of successElements) {
-        if (element.textContent?.toLowerCase().includes("accepted") || 
-            element.textContent?.toLowerCase().includes("success")) {
-          acceptedElement = element;
-          break;
-        }
-      }
-    }
-
-    if (acceptedElement && this.isOnProblemPage()) {
-      console.log("Detected accepted submission");
+    if (acceptedElement) {
       this.lastSubmissionTime = now;
+      this.handleAcceptedSubmission();
+    }
+  }
+
+  checkElementForSubmissionResult(element) {
+    const text = element.textContent?.toLowerCase() || '';
+    if (text.includes('accepted') && text.includes('runtime')) {
+      this.log("Found potential result element", element);
       this.handleAcceptedSubmission();
     }
   }
 
   isOnProblemPage() {
     return window.location.pathname.includes("/problems/") && 
-           !window.location.pathname.includes("/submissions");
+           !window.location.pathname.includes("/submissions") &&
+           !window.location.pathname.includes("/discuss");
   }
 
   async handleAcceptedSubmission() {
+    this.log("Handling accepted submission...");
+    
     try {
-      // Wait for DOM to settle
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Wait for any animations/state updates to complete
+      await new Promise(resolve => setTimeout(resolve, 1500));
 
       const solutionData = this.extractSolutionData();
       if (solutionData) {
+        this.log("Extracted solution data", solutionData);
+        
         chrome.runtime.sendMessage(
           { type: "solved_dom", payload: solutionData },
           (response) => {
             if (response?.success) {
-              console.log("Solution sent to background:", solutionData.title);
+              this.log("Solution sent to background successfully");
             } else {
-              console.error("Failed to send solution:", response?.error);
+              this.log("Failed to send solution", response?.error);
             }
           }
         );
+      } else {
+        this.log("Failed to extract solution data");
       }
     } catch (error) {
-      console.error("Error handling accepted submission:", error);
+      this.log("Error handling submission", error);
     }
   }
 
   extractSolutionData() {
     try {
-      // Extract title with more comprehensive selectors
-      const titleSelectors = [
-        '[data-cy="question-title"]',
-        'h1[class*="title"]',
-        '.css-v3d350',
-        'h1',
-        '[class*="question-title"]',
-        'div[data-track-load="question_title"]',
-        '.question-title',
-        'h1[data-cy="question-title"]'
-      ];
-      
-      let titleElement = null;
-      let title = '';
-      
-      for (const selector of titleSelectors) {
-        titleElement = document.querySelector(selector);
-        if (titleElement) {
-          title = titleElement.textContent?.trim();
-          if (title && title.length > 0 && !title.includes('LeetCode') && !title.includes('Sign in')) {
-            break;
-          }
-        }
-      }
-      
-      // Fallback: extract from URL if no title found
+      // Updated title extraction for current LeetCode
+      const title = this.extractTitle();
       if (!title) {
-        const pathMatch = window.location.pathname.match(/\/problems\/([^\/]+)/);
-        if (pathMatch) {
-          title = pathMatch[1].split('-').map(word => 
-            word.charAt(0).toUpperCase() + word.slice(1)
-          ).join(' ');
-        }
-      }
-      
-      if (!title) {
-        console.error("Could not extract problem title from any selector");
-        console.log("Available h1 elements:", Array.from(document.querySelectorAll('h1')).map(h => h.textContent?.trim()));
+        this.log("Could not extract title");
         return null;
       }
 
-      // Extract slug from URL
-      const slugMatch = window.location.pathname.match(/\/problems\/([^\/]+)/);
-      const slug = slugMatch?.[1];
+      const slug = this.extractSlug();
       if (!slug) {
-        console.error("Could not extract problem slug");
+        this.log("Could not extract slug");
         return null;
       }
 
-      // Extract difficulty
-      const difficultyElement = document.querySelector("[diff]") ||
-                               document.querySelector('[class*="difficulty"]') ||
-                               document.querySelector('.css-dcmtd5');
-      
-      let difficulty = "Medium";
-      if (difficultyElement) {
-        const diffText = difficultyElement.textContent?.toLowerCase() || "";
-        if (diffText.includes("easy")) difficulty = "Easy";
-        else if (diffText.includes("hard")) difficulty = "Hard";
-      }
-
-      // Extract description
-      const descElement = document.querySelector('[data-track-load="description_content"]') ||
-                         document.querySelector('.css-1iinkds') ||
-                         document.querySelector('[class*="question-content"]');
-      
-      const description = descElement?.textContent?.trim() || "";
-
-      // Extract code
-      const code = this.extractCodeFromEditor();
-      if (!code) {
-        console.error("Could not extract code from editor");
-        return null;
-      }
-
-      // Extract language
+      const difficulty = this.extractDifficulty();
+      const description = this.extractDescription();
+      const code = this.extractCode();
       const language = this.extractLanguage();
 
-      return {
-        id: `${slug}-${language}-${Date.now()}`,
+      if (!code) {
+        this.log("Could not extract code");
+        return null;
+      }
+
+      const solution = {
+        id: `${slug}-${language.toLowerCase()}-${Date.now()}`,
         title,
         slug,
         difficulty,
@@ -217,134 +249,261 @@ class LeetCodeDetector {
         language,
         timestamp: Date.now()
       };
+
+      this.log("Successfully extracted solution", solution);
+      return solution;
+
     } catch (error) {
-      console.error("Error extracting solution data:", error);
+      this.log("Error extracting solution data", error);
       return null;
     }
   }
 
-  extractCodeFromEditor() {
-    // Try Monaco editor API first
+  extractTitle() {
+    // Updated selectors for current LeetCode interface
+    const titleSelectors = [
+      // Primary selectors
+      '[data-cy="question-title"]',
+      'h1[data-cy="question-title"]',
+      
+      // Class-based selectors
+      'h1[class*="title"]',
+      '.question-title',
+      '[class*="question-title"]',
+      
+      // CSS selectors (may be dynamic)
+      '.css-v3d350',
+      'h1.text-title-large',
+      'h1.text-lg',
+      
+      // Generic fallbacks
+      'h1',
+      '[data-track-load="question_title"]',
+      '.content-title h1'
+    ];
+
+    for (const selector of titleSelectors) {
+      try {
+        const element = document.querySelector(selector);
+        if (element) {
+          const text = element.textContent?.trim();
+          if (text && 
+              text.length > 0 && 
+              !text.toLowerCase().includes('leetcode') && 
+              !text.toLowerCase().includes('sign in') &&
+              !text.toLowerCase().includes('premium')) {
+            this.log("Found title", { selector, text });
+            return text;
+          }
+        }
+      } catch (e) {
+        // Continue to next selector
+      }
+    }
+
+    // Fallback: extract from URL
+    const pathMatch = window.location.pathname.match(/\/problems\/([^\/]+)/);
+    if (pathMatch) {
+      const title = pathMatch[1]
+        .split('-')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+      this.log("Extracted title from URL", title);
+      return title;
+    }
+
+    this.log("No title found with any selector");
+    return null;
+  }
+
+  extractSlug() {
+    const pathMatch = window.location.pathname.match(/\/problems\/([^\/]+)/);
+    return pathMatch?.[1] || null;
+  }
+
+  extractDifficulty() {
+    const difficultySelectors = [
+      '[data-difficulty]',
+      '[class*="difficulty"]',
+      '.css-dcmtd5',
+      '[class*="text-difficulty"]',
+      'span[class*="easy"]',
+      'span[class*="medium"]', 
+      'span[class*="hard"]'
+    ];
+
+    for (const selector of difficultySelectors) {
+      try {
+        const element = document.querySelector(selector);
+        if (element) {
+          const text = element.textContent?.toLowerCase() || '';
+          if (text.includes('easy')) return 'Easy';
+          if (text.includes('medium')) return 'Medium';
+          if (text.includes('hard')) return 'Hard';
+        }
+      } catch (e) {
+        // Continue
+      }
+    }
+
+    return 'Medium'; // Default
+  }
+
+  extractDescription() {
+    const descriptionSelectors = [
+      '[data-track-load="description_content"]',
+      '.css-1iinkds',
+      '[class*="question-content"]',
+      '.content__u3I1 .question-content',
+      '[class*="problem-content"]',
+      '.problem-statement'
+    ];
+
+    for (const selector of descriptionSelectors) {
+      try {
+        const element = document.querySelector(selector);
+        if (element) {
+          const text = element.textContent?.trim();
+          if (text && text.length > 50) {
+            return text;
+          }
+        }
+      } catch (e) {
+        // Continue
+      }
+    }
+
+    return '';
+  }
+
+  extractCode() {
+    // Try Monaco API first (most reliable)
     try {
-      if (window.monaco && window.monaco.editor) {
+      if (window.monaco?.editor) {
         const models = window.monaco.editor.getModels();
         if (models.length > 0) {
           const code = models[0].getValue();
-          if (code && code.trim().length > 0) {
+          if (code?.trim()) {
+            this.log("Extracted code via Monaco API");
             return code;
           }
         }
       }
     } catch (e) {
-      console.log("Could not access Monaco API");
+      this.log("Monaco API not available");
     }
 
-    // Try different editor DOM selectors
+    // Try DOM selectors
     const editorSelectors = [
+      // Monaco editor
       '.monaco-editor .view-lines',
-      '.CodeMirror-code', 
-      '[data-mode-id] .view-lines',
-      '.ace_content',
+      '[class*="monaco"] .view-lines',
+      
+      // CodeMirror
+      '.CodeMirror-code',
+      '.CodeMirror .CodeMirror-line',
+      
+      // Textarea fallbacks
       'textarea[data-cy="code-editor"]',
       '#editor textarea',
       '.editor-container textarea',
-      '[class*="editor"] textarea'
+      '[class*="editor"] textarea',
+      'textarea[class*="code"]',
+      
+      // Other editor patterns
+      '[data-mode-id] .view-lines',
+      '.ace_content',
+      '[class*="code-editor"]'
     ];
 
     for (const selector of editorSelectors) {
-      const editor = document.querySelector(selector);
-      if (editor) {
-        if (editor.classList.contains('view-lines')) {
-          // Monaco editor DOM
-          const lines = editor.querySelectorAll('.view-line');
-          if (lines.length > 0) {
-            const code = Array.from(lines).map(line => line.textContent || "").join('\n');
-            if (code.trim().length > 0) return code;
+      try {
+        const element = document.querySelector(selector);
+        if (element) {
+          let code = '';
+          
+          if (element.classList.contains('view-lines')) {
+            // Monaco editor DOM
+            const lines = element.querySelectorAll('.view-line');
+            code = Array.from(lines).map(line => line.textContent || "").join('\n');
+          } else if (element.classList.contains('CodeMirror-code')) {
+            // CodeMirror
+            const lines = element.querySelectorAll('.CodeMirror-line');
+            code = Array.from(lines).map(line => line.textContent || "").join('\n');
+          } else if (element.tagName === 'TEXTAREA') {
+            code = element.value;
+          } else {
+            code = element.textContent || "";
           }
-        } else if (editor.tagName === 'TEXTAREA') {
-          if (editor.value && editor.value.trim().length > 0) {
-            return editor.value;
+          
+          if (code?.trim()) {
+            this.log("Extracted code via DOM", { selector, codeLength: code.length });
+            return code;
           }
-        } else {
-          const text = editor.textContent || "";
-          if (text.trim().length > 0) return text;
         }
+      } catch (e) {
+        // Continue
       }
     }
 
-    // Try Monaco API
-    try {
-      if (window.monaco && window.monaco.editor) {
-        const models = window.monaco.editor.getModels();
-        if (models.length > 0) {
-          return models[0].getValue();
-        }
-      }
-    } catch (e) {
-      console.log("Could not access Monaco editor instance");
-    }
-
-    // Try global editor variable
-    try {
-      if (window.editor && typeof window.editor.getValue === 'function') {
-        return window.editor.getValue();
-      }
-    } catch (e) {
-      console.log("Could not access global editor");
-    }
-
-    return "";
+    this.log("Could not extract code from any source");
+    return null;
   }
 
   extractLanguage() {
-    // Try different language selector patterns
-    const langSelectors = [
+    const languageSelectors = [
       '[data-cy="lang-select"] .ant-select-selection-item',
       '.lang-select .selected',
       '[class*="language-select"] [class*="selected"]',
-      'button[data-state="selected"][role="option"]'
+      'button[data-state="selected"][role="option"]',
+      '[class*="language"] [class*="selected"]',
+      '.language-picker [class*="active"]'
     ];
 
-    for (const selector of langSelectors) {
-      const element = document.querySelector(selector);
-      if (element?.textContent) {
-        return element.textContent.trim();
+    for (const selector of languageSelectors) {
+      try {
+        const element = document.querySelector(selector);
+        if (element?.textContent) {
+          const lang = element.textContent.trim();
+          this.log("Found language", lang);
+          return lang;
+        }
+      } catch (e) {
+        // Continue
       }
     }
 
-    // Check URL parameters
-    const urlParams = new URLSearchParams(window.location.search);
-    const langParam = urlParams.get('lang');
-    if (langParam) return langParam;
+    // Fallback: detect from code
+    const code = this.extractCode();
+    if (code) {
+      if (code.includes('def ') || code.includes('print(')) return 'Python';
+      if (code.includes('function ') || code.includes('const ') || code.includes('let ')) return 'JavaScript';
+      if (code.includes('class ') && code.includes('public static')) return 'Java';
+      if (code.includes('#include') || code.includes('std::')) return 'C++';
+    }
 
-    // Intelligent detection based on code content
-    const code = this.extractCodeFromEditor();
-    if (code.includes('def ') || code.includes('print(')) return 'Python';
-    if (code.includes('function ') || code.includes('const ') || code.includes('let ')) return 'JavaScript';
-    if (code.includes('class ') && code.includes('public static')) return 'Java';
-    if (code.includes('#include') || code.includes('std::')) return 'C++';
-
-    return 'JavaScript'; // Default fallback
+    return 'JavaScript'; // Default
   }
 
   destroy() {
-    this.stopObserving();
     if (this.observer) {
       this.observer.disconnect();
       this.observer = null;
     }
+    this.isObserving = false;
+    this.log("Detector destroyed");
   }
 }
 
 // Initialize detector
 const detector = new LeetCodeDetector();
 
-// Handle page navigation in SPAs
+// Handle page navigation
 let currentHref = window.location.href;
 const navigationObserver = new MutationObserver(() => {
   if (window.location.href !== currentHref) {
     currentHref = window.location.href;
-    console.log("Page navigated, reinitializing detector");
+    console.log("[Leet2Git] Page navigated, reinitializing detector");
     detector.destroy();
     setTimeout(() => {
       new LeetCodeDetector();
@@ -354,8 +513,11 @@ const navigationObserver = new MutationObserver(() => {
 
 navigationObserver.observe(document.body, { childList: true, subtree: true });
 
-// Cleanup on page unload
+// Cleanup
 window.addEventListener('beforeunload', () => {
   detector.destroy();
   navigationObserver.disconnect();
 });
+
+// Export for debugging
+window.leetCodeDetector = detector;
