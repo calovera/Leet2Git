@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Extension Styling Test</title>
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            padding: 20px;
+            background: #f3f4f6;
+        }
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .popup-test {
+            width: 320px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+        iframe {
+            width: 100%;
+            height: 500px;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>Leet2Git Extension Styling Test</h1>
+        
+        <h2>Testing Popup Appearance</h2>
+        <p>This should show the popup with beautiful styling:</p>
+        
+        <div class="popup-test">
+            <iframe src="dist-extension/src/popup/index.html"></iframe>
+        </div>
+        
+        <h2>Expected vs Actual</h2>
+        <p>The popup should have:</p>
+        <ul>
+            <li>Clean white background</li>
+            <li>Purple gradient icon next to "Leet2Git" title</li>
+            <li>Proper tab styling with Home/Push tabs</li>
+            <li>Colored difficulty badges (green Easy, yellow Medium, red Hard)</li>
+            <li>Rounded corners and proper spacing</li>
+        </ul>
+        
+        <h2>Build Information</h2>
+        <p>Extension built with React TypeScript workflow</p>
+        <p>CSS classes compiled inline to avoid CSP issues</p>
+        
+        <button onclick="openPopup()">Open Popup in New Window</button>
+        <button onclick="openOptions()">Open Options Page</button>
+        
+        <script>
+            function openPopup() {
+                window.open('dist-extension/src/popup/index.html', 'popup', 'width=320,height=500');
+            }
+            
+            function openOptions() {
+                window.open('dist-extension/src/options/index.html', 'options', 'width=800,height=600');
+            }
+        </script>
+    </div>
+</body>
+</html>
