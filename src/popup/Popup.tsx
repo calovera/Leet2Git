@@ -19,6 +19,23 @@ interface PendingItem {
   difficulty: string;
 }
 
+interface GitHubAuth {
+  token: string;
+  username: string;
+  email: string;
+  connected: boolean;
+}
+
+interface RepoCfg {
+  owner: string;
+  repo: string;
+  branch: string;
+  private: boolean;
+  folderStructure: 'difficulty' | 'topic' | 'flat';
+  includeDescription: boolean;
+  includeTestCases: boolean;
+}
+
 const HomeStats = ({ stats }: { stats: Stats }) => {
   const formatTimeAgo = (timestamp: number) => {
     const now = Date.now();
@@ -34,433 +51,271 @@ const HomeStats = ({ stats }: { stats: Stats }) => {
     return `${diffInDays}d ago`;
   };
 
-  const getLanguageColor = (language: string) => {
+  const getDifficultyColor = (difficulty: string) => {
     const colors: Record<string, string> = {
-      'Python': 'bg-blue-100 text-blue-800',
-      'JavaScript': 'bg-yellow-100 text-yellow-800',
-      'Java': 'bg-red-100 text-red-800',
-      'C++': 'bg-purple-100 text-purple-800',
-      'Go': 'bg-cyan-100 text-cyan-800',
-      'Rust': 'bg-orange-100 text-orange-800',
+      'Easy': '#10b981',
+      'Medium': '#f59e0b', 
+      'Hard': '#ef4444'
     };
-    return colors[language] || 'bg-slate-100 text-slate-800';
+    return colors[difficulty] || '#6b7280';
   };
 
   return (
-    <div className="space-y-4">
-      <div style={{
-        borderRadius: '12px',
-        backgroundColor: '#ffffff',
-        boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05), 0 0 0 1px #e2e8f0',
-        padding: '16px'
-      }}>
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-2">
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              backgroundColor: '#4f46e5',
-              color: '#ffffff',
-              padding: '6px 12px',
-              borderRadius: '9999px',
-              fontSize: '14px',
-              fontWeight: '500'
-            }}>
-              <svg style={{width: '16px', height: '16px'}} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z" />
-              </svg>
-              <span>{stats.streak} day streak</span>
-            </div>
-          </div>
-        </div>
-
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      {/* Stats Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
         <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: '12px',
-          marginBottom: '16px'
+          background: 'rgba(255, 255, 255, 0.1)',
+          backdropFilter: 'blur(10px)',
+          borderRadius: '12px',
+          padding: '16px',
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          textAlign: 'center'
         }}>
-          <div style={{textAlign: 'center'}}>
-            <div style={{
-              backgroundColor: '#dcfce7',
-              color: '#166534',
-              padding: '8px 12px',
-              borderRadius: '8px'
-            }}>
-              <div style={{fontSize: '18px', fontWeight: '600'}}>{stats.counts.easy}</div>
-              <div style={{fontSize: '12px'}}>Easy</div>
-            </div>
+          <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#ffffff', marginBottom: '4px' }}>
+            {stats.streak}
           </div>
-          <div style={{textAlign: 'center'}}>
-            <div style={{
-              backgroundColor: '#fef3c7',
-              color: '#92400e',
-              padding: '8px 12px',
-              borderRadius: '8px'
-            }}>
-              <div style={{fontSize: '18px', fontWeight: '600'}}>{stats.counts.medium}</div>
-              <div style={{fontSize: '12px'}}>Medium</div>
-            </div>
-          </div>
-          <div style={{textAlign: 'center'}}>
-            <div style={{
-              backgroundColor: '#fee2e2',
-              color: '#991b1b',
-              padding: '8px 12px',
-              borderRadius: '8px'
-            }}>
-              <div style={{fontSize: '18px', fontWeight: '600'}}>{stats.counts.hard}</div>
-              <div style={{fontSize: '12px'}}>Hard</div>
-            </div>
-          </div>
+          <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.8)' }}>Day Streak</div>
         </div>
+        
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.1)',
+          backdropFilter: 'blur(10px)',
+          borderRadius: '12px',
+          padding: '16px',
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          textAlign: 'center'
+        }}>
+          <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#ffffff', marginBottom: '4px' }}>
+            {stats.counts.easy + stats.counts.medium + stats.counts.hard}
+          </div>
+          <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.8)' }}>Total Solved</div>
+        </div>
+      </div>
 
-        <div>
-          <h3 style={{
-            fontSize: '14px', 
-            fontWeight: '500', 
-            color: '#0f172a', 
-            marginBottom: '12px', 
-            display: 'flex', 
-            alignItems: 'center'
-          }}>
-            <svg style={{width: '16px', height: '16px', marginRight: '6px'}} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-            </svg>
-            Recent Solves
-          </h3>
-          
-          <div style={{
-            maxHeight: '160px',
-            overflowY: 'auto',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px'
-          }}>
-            {stats.recentSolves.length === 0 ? (
-              <div style={{
-                padding: '24px',
-                textAlign: 'center',
-                color: '#64748b'
-              }}>
-                <svg style={{
-                  width: '32px',
-                  height: '32px',
-                  margin: '0 auto 12px auto',
-                  color: '#cbd5e1'
-                }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
-                <div style={{
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  color: '#0f172a',
-                  marginBottom: '4px'
-                }}>No recent solutions</div>
-                <div style={{fontSize: '12px'}}>Solve problems on LeetCode to see them here</div>
+      {/* Difficulty Breakdown */}
+      <div style={{
+        background: 'rgba(255, 255, 255, 0.1)',
+        backdropFilter: 'blur(10px)',
+        borderRadius: '12px',
+        padding: '16px',
+        border: '1px solid rgba(255, 255, 255, 0.2)'
+      }}>
+        <div style={{ fontSize: '14px', fontWeight: '600', color: '#ffffff', marginBottom: '12px' }}>
+          Problem Difficulty
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
+          {[
+            { label: 'Easy', count: stats.counts.easy, color: '#10b981' },
+            { label: 'Medium', count: stats.counts.medium, color: '#f59e0b' },
+            { label: 'Hard', count: stats.counts.hard, color: '#ef4444' }
+          ].map(({ label, count, color }) => (
+            <div key={label} style={{ textAlign: 'center', flex: 1 }}>
+              <div style={{ fontSize: '18px', fontWeight: 'bold', color: color }}>
+                {count}
               </div>
-            ) : (
-              stats.recentSolves.slice(0, 5).map((solve) => (
-              <div key={solve.id} style={{
+              <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.8)' }}>
+                {label}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Recent Solves */}
+      <div style={{
+        background: 'rgba(255, 255, 255, 0.1)',
+        backdropFilter: 'blur(10px)',
+        borderRadius: '12px',
+        padding: '16px',
+        border: '1px solid rgba(255, 255, 255, 0.2)'
+      }}>
+        <div style={{ fontSize: '14px', fontWeight: '600', color: '#ffffff', marginBottom: '12px' }}>
+          Recent Solves
+        </div>
+        {stats.recentSolves.length === 0 ? (
+          <div style={{
+            textAlign: 'center',
+            padding: '20px',
+            color: 'rgba(255, 255, 255, 0.6)',
+            fontSize: '13px'
+          }}>
+            <div style={{ marginBottom: '8px' }}>🎯</div>
+            <div>No recent solutions yet</div>
+            <div>Start solving problems on LeetCode!</div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {stats.recentSolves.slice(0, 3).map((solve, index) => (
+              <div key={index} style={{
                 display: 'flex',
-                alignItems: 'center',
                 justifyContent: 'space-between',
-                padding: '8px',
+                alignItems: 'center',
+                padding: '8px 12px',
+                background: 'rgba(255, 255, 255, 0.05)',
                 borderRadius: '8px',
-                backgroundColor: '#f8fafc',
-                transition: 'background-color 0.2s'
+                border: '1px solid rgba(255, 255, 255, 0.1)'
               }}>
-                <div style={{flex: '1', minWidth: '0'}}>
-                  <div style={{
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    color: '#0f172a',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap'
-                  }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <div style={{ fontSize: '13px', fontWeight: '500', color: '#ffffff' }}>
                     {solve.title}
                   </div>
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    marginTop: '4px',
-                    gap: '8px'
-                  }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      padding: '2px 8px',
+                      fontSize: '11px',
+                      padding: '2px 6px',
                       borderRadius: '4px',
-                      fontSize: '12px',
-                      fontWeight: '500',
-                      backgroundColor: '#3b82f6',
+                      background: getDifficultyColor(solve.difficulty),
                       color: '#ffffff'
                     }}>
+                      {solve.difficulty}
+                    </span>
+                    <span style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.7)' }}>
                       {solve.language}
                     </span>
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      fontSize: '12px',
-                      color: '#64748b'
-                    }}>
-                      <svg style={{width: '12px', height: '12px', marginRight: '4px'}} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      {formatTimeAgo(solve.timestamp)}
-                    </div>
                   </div>
                 </div>
+                <div style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.6)' }}>
+                  {formatTimeAgo(solve.timestamp)}
+                </div>
               </div>
-              ))
-            )}
+            ))}
           </div>
-        </div>
-
-        <div style={{
-          marginTop: '16px',
-          paddingTop: '16px',
-          borderTop: '1px solid #e2e8f0'
-        }}>
-          <a
-            href="https://leetcode.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '100%',
-              padding: '8px 16px',
-              backgroundColor: '#f1f5f9',
-              color: '#334155',
-              fontSize: '14px',
-              fontWeight: '500',
-              borderRadius: '8px',
-              textDecoration: 'none',
-              transition: 'background-color 0.2s'
-            }}
-          >
-            Open LeetCode
-            <svg style={{width: '16px', height: '16px', marginLeft: '8px'}} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-            </svg>
-          </a>
-        </div>
+        )}
       </div>
     </div>
   );
 };
 
-const PushPanel = ({ pending, setPending }: { 
-  pending: PendingItem[], 
-  setPending: React.Dispatch<React.SetStateAction<PendingItem[]>>
-}) => {
+const PushSection = ({ pending }: { pending: PendingItem[] }) => {
   const [isPushing, setIsPushing] = useState(false);
-  const [showToast, setShowToast] = useState<{ type: string; message: string } | null>(null);
+  const [pushStatus, setPushStatus] = useState<string>('');
 
-  const removePendingItem = (id: string) => {
-    setPending(prev => prev.filter(item => item.id !== id));
-  };
-
-  const handlePush = async () => {
-    if (pending.length === 0) return;
-    
+  const handleSync = async () => {
     setIsPushing(true);
+    setPushStatus('Syncing solutions to GitHub...');
     
     try {
-      const response = await chrome.runtime.sendMessage({ type: 'push' });
+      const response = await new Promise<any>((resolve) => {
+        chrome.runtime.sendMessage({ type: 'PUSH_SOLUTIONS' }, resolve);
+      });
+      
       if (response.success) {
-        setPending([]);
-        setShowToast({ type: 'success', message: response.message || 'Successfully pushed to GitHub' });
+        setPushStatus(`Successfully synced ${response.count || 0} solutions!`);
       } else {
-        setShowToast({ type: 'error', message: response.error || 'Push failed' });
+        setPushStatus(`Error: ${response.error || 'Unknown error occurred'}`);
       }
     } catch (error) {
-      setShowToast({ type: 'error', message: 'Error pushing to GitHub' });
-    } finally {
-      setIsPushing(false);
-      setTimeout(() => setShowToast(null), 3000);
+      setPushStatus('Error: Failed to sync solutions');
     }
-  };
-
-  const getLanguageColor = (language: string) => {
-    const colors: Record<string, string> = {
-      'Python': 'bg-blue-100 text-blue-800',
-      'JavaScript': 'bg-yellow-100 text-yellow-800',
-      'Java': 'bg-red-100 text-red-800',
-      'C++': 'bg-purple-100 text-purple-800',
-      'Go': 'bg-cyan-100 text-cyan-800',
-      'Rust': 'bg-orange-100 text-orange-800',
-    };
-    return colors[language] || 'bg-slate-100 text-slate-800';
+    
+    setIsPushing(false);
+    setTimeout(() => setPushStatus(''), 3000);
   };
 
   return (
-    <div style={{display: 'flex', flexDirection: 'column', gap: '16px'}}>
-      {showToast && (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      {/* Sync Button */}
+      <button
+        onClick={handleSync}
+        disabled={isPushing}
+        style={{
+          background: isPushing 
+            ? 'rgba(255, 255, 255, 0.1)' 
+            : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          color: '#ffffff',
+          border: 'none',
+          borderRadius: '12px',
+          padding: '16px 24px',
+          fontSize: '14px',
+          fontWeight: '600',
+          cursor: isPushing ? 'not-allowed' : 'pointer',
+          transition: 'all 0.2s ease',
+          opacity: isPushing ? 0.7 : 1
+        }}
+      >
+        {isPushing ? 'Syncing...' : 'Sync to GitHub'}
+      </button>
+
+      {/* Status Message */}
+      {pushStatus && (
         <div style={{
-          position: 'fixed',
-          top: '16px',
-          right: '16px',
-          zIndex: '50',
-          padding: '16px',
+          background: 'rgba(255, 255, 255, 0.1)',
+          backdropFilter: 'blur(10px)',
           borderRadius: '8px',
-          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-          transition: 'all 0.3s',
-          backgroundColor: showToast.type === 'success' ? '#f0fdf4' : '#fef2f2',
-          border: showToast.type === 'success' ? '1px solid #bbf7d0' : '1px solid #fecaca',
-          color: showToast.type === 'success' ? '#166534' : '#991b1b'
+          padding: '12px',
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          fontSize: '13px',
+          color: '#ffffff',
+          textAlign: 'center'
         }}>
-          <div style={{display: 'flex', alignItems: 'center'}}>
-            <svg style={{width: '20px', height: '20px', marginRight: '8px'}} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-            <span style={{fontSize: '14px', fontWeight: '500'}}>{showToast.message}</span>
-          </div>
+          {pushStatus}
         </div>
       )}
 
-      <button
-        onClick={handlePush}
-        disabled={isPushing || pending.length === 0}
-        style={{
-          width: '100%',
-          padding: '12px 16px',
-          fontSize: '14px',
-          fontWeight: '500',
-          borderRadius: '8px',
-          border: 'none',
-          cursor: isPushing || pending.length === 0 ? 'not-allowed' : 'pointer',
-          transition: 'all 0.2s',
-          backgroundColor: isPushing || pending.length === 0 ? '#f1f5f9' : '#4f46e5',
-          color: isPushing || pending.length === 0 ? '#94a3b8' : '#ffffff',
-          boxShadow: isPushing || pending.length === 0 ? 'none' : '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
-        }}
-      >
-        {isPushing ? (
-          <div style={{display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-            <div style={{
-              width: '16px',
-              height: '16px',
-              border: '2px solid transparent',
-              borderTop: '2px solid #ffffff',
-              borderRadius: '50%',
-              animation: 'spin 1s linear infinite',
-              marginRight: '8px'
-            }}></div>
-            Pushing to GitHub...
-          </div>
-        ) : (
-          `Push to GitHub (${pending.length})`
-        )}
-      </button>
-
+      {/* Pending Solutions */}
       <div style={{
+        background: 'rgba(255, 255, 255, 0.1)',
+        backdropFilter: 'blur(10px)',
         borderRadius: '12px',
-        backgroundColor: '#ffffff',
-        boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-        border: '1px solid #e2e8f0',
-        overflow: 'hidden'
+        padding: '16px',
+        border: '1px solid rgba(255, 255, 255, 0.2)'
       }}>
+        <div style={{ fontSize: '14px', fontWeight: '600', color: '#ffffff', marginBottom: '12px' }}>
+          Pending Solutions ({pending.length})
+        </div>
+        
         {pending.length === 0 ? (
           <div style={{
-            padding: '32px',
             textAlign: 'center',
-            color: '#64748b'
+            padding: '20px',
+            color: 'rgba(255, 255, 255, 0.6)',
+            fontSize: '13px'
           }}>
-            <svg style={{
-              width: '48px',
-              height: '48px',
-              margin: '0 auto 16px auto',
-              color: '#cbd5e1'
-            }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            <h3 style={{
-              fontSize: '14px',
-              fontWeight: '500',
-              color: '#0f172a',
-              marginBottom: '4px'
-            }}>No pending solutions</h3>
-            <p style={{fontSize: '12px'}}>Solutions you solve will appear here before pushing to GitHub</p>
+            <div style={{ marginBottom: '8px' }}>✨</div>
+            <div>All caught up!</div>
+            <div>No pending solutions to sync</div>
           </div>
         ) : (
-          <div style={{overflow: 'hidden'}}>
-            <div style={{
-              padding: '12px 16px',
-              backgroundColor: '#f8fafc',
-              borderBottom: '1px solid #e2e8f0'
-            }}>
-              <h3 style={{
-                fontSize: '14px',
-                fontWeight: '500',
-                color: '#0f172a'
-              }}>Pending Solutions</h3>
-            </div>
-            <div style={{
-              maxHeight: '256px',
-              overflowY: 'auto'
-            }}>
-              {pending.map((item) => (
-                <div key={item.id} style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '16px',
-                  borderBottom: '1px solid #f1f5f9',
-                  transition: 'background-color 0.2s'
-                }}>
-                  <div style={{flex: '1', minWidth: '0'}}>
-                    <div style={{
-                      fontSize: '14px',
-                      fontWeight: '500',
-                      color: '#0f172a',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap'
-                    }}>
-                      {item.title}
-                    </div>
-                    <div style={{marginTop: '4px'}}>
-                      <span style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        padding: '2px 8px',
-                        borderRadius: '4px',
-                        fontSize: '12px',
-                        fontWeight: '500',
-                        backgroundColor: '#3b82f6',
-                        color: '#ffffff'
-                      }}>
-                        {item.language}
-                      </span>
-                    </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '200px', overflowY: 'auto' }}>
+            {pending.map((item, index) => (
+              <div key={index} style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '8px 12px',
+                background: 'rgba(255, 255, 255, 0.05)',
+                borderRadius: '8px',
+                border: '1px solid rgba(255, 255, 255, 0.1)'
+              }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <div style={{ fontSize: '13px', fontWeight: '500', color: '#ffffff' }}>
+                    {item.title}
                   </div>
-                  <button
-                    onClick={() => removePendingItem(item.id)}
-                    style={{
-                      marginLeft: '16px',
-                      padding: '6px',
-                      color: '#94a3b8',
-                      backgroundColor: 'transparent',
-                      border: 'none',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s'
-                    }}
-                    title="Remove from pending"
-                  >
-                    <svg style={{width: '16px', height: '16px'}} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{
+                      fontSize: '11px',
+                      padding: '2px 6px',
+                      borderRadius: '4px',
+                      background: item.difficulty === 'Easy' ? '#10b981' : 
+                                item.difficulty === 'Medium' ? '#f59e0b' : '#ef4444',
+                      color: '#ffffff'
+                    }}>
+                      {item.difficulty}
+                    </span>
+                    <span style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.7)' }}>
+                      {item.language}
+                    </span>
+                  </div>
                 </div>
-              ))}
-            </div>
+                <div style={{
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  background: '#f59e0b'
+                }} />
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -468,151 +323,498 @@ const PushPanel = ({ pending, setPending }: {
   );
 };
 
-export default function Popup() {
-  const [tab, setTab] = useState('home');
-  const [stats, setStats] = useState<Stats>({
-    streak: 0,
-    counts: { easy: 0, medium: 0, hard: 0 },
-    recentSolves: []
-  });
-  const [pending, setPending] = useState<PendingItem[]>([]);
-  const [loading, setLoading] = useState(true);
+const SettingsSection = ({ auth, config }: { auth: GitHubAuth | null, config: RepoCfg }) => {
+  const [token, setToken] = useState('');
+  const [repoOwner, setRepoOwner] = useState(config?.owner || '');
+  const [repoName, setRepoName] = useState(config?.repo || 'leetcode-solutions');
+  const [branch, setBranch] = useState(config?.branch || 'main');
+  const [isPrivate, setIsPrivate] = useState<boolean>(config?.private || false);
+  const [folderStructure, setFolderStructure] = useState<'difficulty' | 'topic' | 'flat'>(config?.folderStructure || 'topic');
+  const [includeDescription, setIncludeDescription] = useState<boolean>(config?.includeDescription || true);
+  const [includeTestCases, setIncludeTestCases] = useState<boolean>(config?.includeTestCases || false);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verifyStatus, setVerifyStatus] = useState<string>('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<string>('');
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  const handleVerifyToken = async () => {
+    if (!token.trim()) {
+      setVerifyStatus('Please enter a GitHub token');
+      return;
+    }
 
-  const loadData = async () => {
+    setIsVerifying(true);
+    setVerifyStatus('Verifying token...');
+
     try {
-      const response = await chrome.runtime.sendMessage({ type: 'getHomeData' });
+      const response = await new Promise<any>((resolve) => {
+        chrome.runtime.sendMessage({ 
+          type: 'AUTH_GITHUB', 
+          data: { token: token.trim() }
+        }, resolve);
+      });
+
       if (response.success) {
-        setStats(response.data.stats);
-        setPending(response.data.pending);
+        setVerifyStatus(`✓ Connected as ${response.username}`);
+        setTimeout(() => setVerifyStatus(''), 3000);
+      } else {
+        setVerifyStatus(`✗ ${response.error || 'Invalid token'}`);
       }
     } catch (error) {
-      console.error('Error loading data:', error);
-    } finally {
-      setLoading(false);
+      setVerifyStatus('✗ Failed to verify token');
     }
+
+    setIsVerifying(false);
   };
 
-  const openSettings = () => {
-    chrome.runtime.openOptionsPage();
+  const handleSaveConfig = async () => {
+    const newConfig = {
+      owner: repoOwner.trim(),
+      repo: repoName.trim(),
+      branch: branch.trim(),
+      private: isPrivate,
+      folderStructure,
+      includeDescription,
+      includeTestCases
+    };
+
+    if (!newConfig.owner || !newConfig.repo) {
+      setSaveStatus('✗ Repository owner and name are required');
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveStatus('Saving configuration...');
+
+    try {
+      const response = await new Promise<any>((resolve) => {
+        chrome.runtime.sendMessage({ 
+          type: 'UPDATE_CONFIG', 
+          data: newConfig 
+        }, resolve);
+      });
+
+      if (response.success) {
+        setSaveStatus('✓ Configuration saved successfully');
+        setTimeout(() => setSaveStatus(''), 3000);
+      } else {
+        setSaveStatus(`✗ ${response.error || 'Failed to save configuration'}`);
+      }
+    } catch (error) {
+      setSaveStatus('✗ Failed to save configuration');
+    }
+
+    setIsSaving(false);
   };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      {/* GitHub Authentication */}
+      <div style={{
+        background: 'rgba(255, 255, 255, 0.1)',
+        backdropFilter: 'blur(10px)',
+        borderRadius: '12px',
+        padding: '20px',
+        border: '1px solid rgba(255, 255, 255, 0.2)'
+      }}>
+        <div style={{ fontSize: '16px', fontWeight: '600', color: '#ffffff', marginBottom: '16px' }}>
+          GitHub Authentication
+        </div>
+        
+        {auth?.connected ? (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            padding: '12px',
+            background: 'rgba(16, 185, 129, 0.2)',
+            borderRadius: '8px',
+            border: '1px solid rgba(16, 185, 129, 0.3)'
+          }}>
+            <div style={{
+              width: '12px',
+              height: '12px',
+              borderRadius: '50%',
+              background: '#10b981'
+            }} />
+            <div style={{ color: '#ffffff', fontSize: '14px' }}>
+              Connected as <strong>{auth.username}</strong>
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.8)' }}>
+              GitHub Personal Access Token:
+            </div>
+            <input
+              type="password"
+              value={token}
+              onChange={(e) => setToken(e.target.value)}
+              placeholder="Enter your GitHub token"
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                background: 'rgba(255, 255, 255, 0.1)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                borderRadius: '6px',
+                color: '#ffffff',
+                fontSize: '13px',
+                outline: 'none'
+              }}
+            />
+            <button
+              onClick={handleVerifyToken}
+              disabled={isVerifying}
+              style={{
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '6px',
+                padding: '10px 16px',
+                fontSize: '13px',
+                fontWeight: '500',
+                cursor: isVerifying ? 'not-allowed' : 'pointer',
+                opacity: isVerifying ? 0.7 : 1
+              }}
+            >
+              {isVerifying ? 'Verifying...' : 'Verify Token'}
+            </button>
+            {verifyStatus && (
+              <div style={{
+                fontSize: '12px',
+                color: verifyStatus.includes('✓') ? '#10b981' : '#ef4444',
+                textAlign: 'center'
+              }}>
+                {verifyStatus}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Repository Configuration */}
+      <div style={{
+        background: 'rgba(255, 255, 255, 0.1)',
+        backdropFilter: 'blur(10px)',
+        borderRadius: '12px',
+        padding: '20px',
+        border: '1px solid rgba(255, 255, 255, 0.2)'
+      }}>
+        <div style={{ fontSize: '16px', fontWeight: '600', color: '#ffffff', marginBottom: '16px' }}>
+          Repository Configuration
+        </div>
+        
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div>
+            <div style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.8)', marginBottom: '6px' }}>
+              Repository Owner:
+            </div>
+            <input
+              type="text"
+              value={repoOwner}
+              onChange={(e) => setRepoOwner(e.target.value)}
+              placeholder="GitHub username or organization"
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                background: 'rgba(255, 255, 255, 0.1)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                borderRadius: '6px',
+                color: '#ffffff',
+                fontSize: '13px',
+                outline: 'none'
+              }}
+            />
+          </div>
+
+          <div>
+            <div style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.8)', marginBottom: '6px' }}>
+              Repository Name:
+            </div>
+            <input
+              type="text"
+              value={repoName}
+              onChange={(e) => setRepoName(e.target.value)}
+              placeholder="leetcode-solutions"
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                background: 'rgba(255, 255, 255, 0.1)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                borderRadius: '6px',
+                color: '#ffffff',
+                fontSize: '13px',
+                outline: 'none'
+              }}
+            />
+          </div>
+
+          <div>
+            <div style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.8)', marginBottom: '6px' }}>
+              Branch:
+            </div>
+            <input
+              type="text"
+              value={branch}
+              onChange={(e) => setBranch(e.target.value)}
+              placeholder="main"
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                background: 'rgba(255, 255, 255, 0.1)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                borderRadius: '6px',
+                color: '#ffffff',
+                fontSize: '13px',
+                outline: 'none'
+              }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <input
+              type="checkbox"
+              id="private-repo"
+              checked={isPrivate}
+              onChange={(e) => setIsPrivate(e.target.checked)}
+              style={{ width: '16px', height: '16px' }}
+            />
+            <label htmlFor="private-repo" style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.8)' }}>
+              Private Repository
+            </label>
+          </div>
+
+          <div>
+            <div style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.8)', marginBottom: '6px' }}>
+              Folder Structure:
+            </div>
+            <select
+              value={folderStructure}
+              onChange={(e) => setFolderStructure(e.target.value as 'difficulty' | 'topic' | 'flat')}
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                background: 'rgba(255, 255, 255, 0.1)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                borderRadius: '6px',
+                color: '#ffffff',
+                fontSize: '13px',
+                outline: 'none'
+              }}
+            >
+              <option value="topic" style={{ background: '#1a1a1a' }}>By Topic</option>
+              <option value="difficulty" style={{ background: '#1a1a1a' }}>By Difficulty</option>
+              <option value="flat" style={{ background: '#1a1a1a' }}>Flat Structure</option>
+            </select>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <input
+                type="checkbox"
+                id="include-description"
+                checked={includeDescription}
+                onChange={(e) => setIncludeDescription(e.target.checked)}
+                style={{ width: '16px', height: '16px' }}
+              />
+              <label htmlFor="include-description" style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.8)' }}>
+                Include Problem Description
+              </label>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <input
+                type="checkbox"
+                id="include-test-cases"
+                checked={includeTestCases}
+                onChange={(e) => setIncludeTestCases(e.target.checked)}
+                style={{ width: '16px', height: '16px' }}
+              />
+              <label htmlFor="include-test-cases" style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.8)' }}>
+                Include Test Cases
+              </label>
+            </div>
+          </div>
+
+          <button
+            onClick={handleSaveConfig}
+            disabled={isSaving}
+            style={{
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '12px 20px',
+              fontSize: '14px',
+              fontWeight: '500',
+              cursor: isSaving ? 'not-allowed' : 'pointer',
+              opacity: isSaving ? 0.7 : 1,
+              marginTop: '4px'
+            }}
+          >
+            {isSaving ? 'Saving...' : 'Save Configuration'}
+          </button>
+
+          {saveStatus && (
+            <div style={{
+              fontSize: '12px',
+              color: saveStatus.includes('✓') ? '#10b981' : '#ef4444',
+              textAlign: 'center'
+            }}>
+              {saveStatus}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const Popup: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<'home' | 'push' | 'settings'>('home');
+  const [homeData, setHomeData] = useState<{
+    stats: Stats;
+    pending: PendingItem[];
+    auth: GitHubAuth | null;
+    config: RepoCfg;
+  } | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await new Promise<any>((resolve) => {
+          chrome.runtime.sendMessage({ type: 'GET_HOME_DATA' }, resolve);
+        });
+        
+        if (response.success) {
+          setHomeData(response.data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch home data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   if (loading) {
     return (
       <div style={{
-        width: '320px', 
-        backgroundColor: '#ffffff', 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center', 
-        height: '384px'
+        width: '380px',
+        height: '500px',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: '#ffffff',
+        fontSize: '14px'
       }}>
-        <div style={{
-          width: '32px',
-          height: '32px',
-          border: '2px solid #e2e8f0',
-          borderTop: '2px solid #4f46e5',
-          borderRadius: '50%',
-          animation: 'spin 1s linear infinite'
-        }}></div>
+        Loading...
       </div>
     );
   }
 
   return (
-    <div style={{width: '320px', backgroundColor: '#ffffff'}}>
-      <div style={{padding: '12px 16px', borderBottom: '1px solid #e2e8f0'}}>
-        <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
-          <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-            <div style={{
-              width: '24px',
-              height: '24px',
-              background: 'linear-gradient(135deg, #4f46e5, #9333ea)',
-              borderRadius: '6px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              <svg style={{width: '16px', height: '16px', color: '#ffffff'}} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-              </svg>
-            </div>
-            <h1 style={{fontSize: '18px', fontWeight: '600', color: '#0f172a'}}>Leet2Git</h1>
+    <div style={{
+      width: '380px',
+      height: '500px',
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      display: 'flex',
+      flexDirection: 'column',
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+    }}>
+      {/* Header */}
+      <div style={{
+        padding: '20px 20px 0 20px',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
+      }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          marginBottom: '16px'
+        }}>
+          <div style={{
+            width: '32px',
+            height: '32px',
+            background: 'rgba(255, 255, 255, 0.2)',
+            borderRadius: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '16px'
+          }}>
+            🎯
           </div>
-          <button 
-            onClick={openSettings}
-            style={{
-              padding: '6px',
-              borderRadius: '6px',
-              backgroundColor: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              transition: 'background-color 0.2s'
-            }}
-          >
-            <svg style={{width: '16px', height: '16px', color: '#64748b'}} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-          </button>
+          <div>
+            <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#ffffff' }}>
+              Leet2Git
+            </div>
+            <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.8)' }}>
+              LeetCode to GitHub Sync
+            </div>
+          </div>
+        </div>
+
+        {/* Tab Navigation */}
+        <div style={{ display: 'flex', gap: '4px' }}>
+          {[
+            { key: 'home', label: 'Home', icon: '🏠' },
+            { key: 'push', label: 'Push', icon: '🚀' },
+            { key: 'settings', label: 'Settings', icon: '⚙️' }
+          ].map(({ key, label, icon }) => (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key as 'home' | 'push' | 'settings')}
+              style={{
+                flex: 1,
+                padding: '10px 8px',
+                background: activeTab === key 
+                  ? 'rgba(255, 255, 255, 0.2)' 
+                  : 'transparent',
+                border: 'none',
+                borderRadius: '8px',
+                color: '#ffffff',
+                fontSize: '12px',
+                fontWeight: '500',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '4px',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <span>{icon}</span>
+              <span>{label}</span>
+            </button>
+          ))}
         </div>
       </div>
 
-      <div style={{display: 'flex', borderBottom: '1px solid #e2e8f0'}}>
-        <button
-          onClick={() => setTab('home')}
-          style={{
-            flex: '1',
-            padding: '12px 16px',
-            fontSize: '14px',
-            fontWeight: '500',
-            border: 'none',
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-            backgroundColor: tab === 'home' ? '#eef2ff' : 'transparent',
-            color: tab === 'home' ? '#4f46e5' : '#64748b',
-            borderBottom: tab === 'home' ? '2px solid #4f46e5' : '2px solid transparent'
-          }}
-        >
-          Home
-        </button>
-        <button
-          onClick={() => setTab('push')}
-          style={{
-            flex: '1',
-            padding: '12px 16px',
-            fontSize: '14px',
-            fontWeight: '500',
-            border: 'none',
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-            backgroundColor: tab === 'push' ? '#eef2ff' : 'transparent',
-            color: tab === 'push' ? '#4f46e5' : '#64748b',
-            borderBottom: tab === 'push' ? '2px solid #4f46e5' : '2px solid transparent'
-          }}
-        >
-          Push ({pending.length})
-        </button>
-      </div>
-
-      <div style={{padding: '16px'}}>
-        {tab === 'home' && (
-          <div>
-            <HomeStats stats={stats} />
-          </div>
+      {/* Content */}
+      <div style={{
+        flex: 1,
+        padding: '20px',
+        overflowY: 'auto'
+      }}>
+        {activeTab === 'home' && homeData && (
+          <HomeStats stats={homeData.stats} />
         )}
-        {tab === 'push' && (
-          <div>
-            <PushPanel 
-              pending={pending} 
-              setPending={setPending}
-            />
-          </div>
+        
+        {activeTab === 'push' && homeData && (
+          <PushSection pending={homeData.pending} />
+        )}
+        
+        {activeTab === 'settings' && homeData && (
+          <SettingsSection auth={homeData.auth} config={homeData.config} />
         )}
       </div>
     </div>
   );
-}
+};
+
+export default Popup;
