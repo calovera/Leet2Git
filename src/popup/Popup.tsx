@@ -22,7 +22,37 @@ interface PendingItem {
   timestamp: number;
   description?: string;
   submissionId: string;
+  tag?: string;
 }
+
+// Helper function to get file extension based on language
+const getFileExtension = (language: string): string => {
+  const extensions: { [key: string]: string } = {
+    javascript: "js",
+    python: "py",
+    python3: "py",
+    java: "java",
+    "c++": "cpp",
+    cpp: "cpp",
+    c: "c",
+    "c#": "cs",
+    csharp: "cs",
+    ruby: "rb",
+    swift: "swift",
+    go: "go",
+    golang: "go",
+    scala: "scala",
+    kotlin: "kt",
+    rust: "rs",
+    php: "php",
+    typescript: "ts",
+    mysql: "sql",
+    postgresql: "sql",
+  };
+  
+  const normalizedLang = (language || "").toLowerCase().trim();
+  return extensions[normalizedLang] || "py";
+};
 
 interface GitHubAuth {
   token: string;
@@ -527,6 +557,16 @@ const PushSection = ({
                       >
                         {item.language}
                       </span>
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "10px",
+                        color: "rgba(255, 255, 255, 0.5)",
+                        marginTop: "4px",
+                        fontFamily: "monospace",
+                      }}
+                    >
+                      📁 {item.tag || "Algorithms"}/{item.title.replace(/[^a-zA-Z0-9]/g, '')}.{getFileExtension(item.language)}
                     </div>
                   </div>
                   <div style={{ display: "flex", gap: "4px" }}>

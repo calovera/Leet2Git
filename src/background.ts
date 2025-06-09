@@ -233,6 +233,8 @@ async function processAcceptedSubmission(submissionId, tabId, data = null) {
       timestamp: Date.now()
     };
     
+    console.log(`[Leet2Git] Solution payload created with tag: ${tag} for ${tabInfo.slug}`);
+    
     tempCodeStorage.delete(questionId);
     
     const storageResult = await chrome.storage.sync.get(['pending', 'solvedSlugs']);
@@ -527,13 +529,19 @@ function generateFileName(solution) {
 }
 
 function generateFilePath(solution, config) {
+  console.log(`[Leet2Git] Generating file path for ${solution.title} with tag: ${solution.tag}, folderStructure: ${config.folderStructure}`);
+  
   switch (config.folderStructure) {
     case 'difficulty':
+      console.log(`[Leet2Git] Using difficulty folder: ${solution.difficulty}`);
       return solution.difficulty;
     case 'topic':
-      return solution.tag || 'Algorithms';
+      const folder = solution.tag || 'Algorithms';
+      console.log(`[Leet2Git] Using topic folder: ${folder}`);
+      return folder;
     case 'flat':
     default:
+      console.log(`[Leet2Git] Using flat structure`);
       return '.';
   }
 }
