@@ -99,41 +99,63 @@
       if (pushBtn) {
         pushBtn.addEventListener('click', handlePush);
       }
+      
+      // Attach event listeners for solution items (CSP compliant)
+      attachSolutionEventListeners();
     }
   }
 
+  function attachSolutionEventListeners() {
+    // Add click listeners for solution headers
+    document.querySelectorAll('.solution-header').forEach((header, index) => {
+      header.addEventListener('click', () => toggleCodePreview(index));
+    });
+
+    // Add click listeners for copy buttons
+    document.querySelectorAll('.copy-button').forEach((button, index) => {
+      button.addEventListener('click', (e) => {
+        e.stopPropagation(); // Prevent triggering the header click
+        copyCode(index);
+      });
+    });
+  }
+
   function renderHomeTab() {
-    const connected = homeData?.auth?.connected || false;
-    const username = homeData?.auth?.username || '';
     const stats = homeData?.stats || { streak: 0, counts: { easy: 0, medium: 0, hard: 0 }, recentSolves: [] };
+    const auth = homeData?.auth || { connected: false };
+    const config = homeData?.config || {};
     
+    // Check if GitHub is properly connected
+    const connected = auth && (auth.connected === true || auth.token);
+    const username = auth?.username || 'Not connected';
+    const repoInfo = config?.owner && config?.repo ? `${config.owner}/${config.repo}` : 'Not configured';
+
     return `
       <div style="display: flex; flex-direction: column; gap: 16px;">
-        <!-- GitHub Status -->
+        <!-- Connection Status -->
         <div class="status-card">
           <div class="status-row">
             <div class="status-left">
-              <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-              </svg>
-              <span style="font-size: 14px; font-weight: 500;">GitHub</span>
+              <div class="status-dot ${connected ? 'connected' : 'disconnected'}"></div>
+              <span style="font-weight: 500; font-size: 14px;">GitHub</span>
             </div>
             <div class="status-right">
-              <div class="status-dot ${connected ? 'connected' : 'disconnected'}"></div>
-              <span style="font-size: 12px; color: ${connected ? '#059669' : '#dc2626'};">
-                ${connected ? `Connected${username ? ` as ${username}` : ''}` : 'Not Connected'}
-              </span>
+              <span style="font-size: 12px; color: #64748b;">${username}</span>
             </div>
           </div>
+          ${config?.owner && config?.repo ? `
+            <div style="margin-top: 8px; font-size: 12px; color: #64748b;">
+              Repository: ${repoInfo}
+            </div>
+          ` : ''}
         </div>
 
-        <!-- Stats -->
+        <!-- Statistics -->
         <div class="stats-card">
           <div class="stats-header">
             <h3 style="font-weight: 500; color: #1e293b; margin: 0; font-size: 14px;">Statistics</h3>
-            <div class="streak-badge">${stats.streak} day streak</div>
+            <div class="streak-badge">🔥 ${stats.streak} day streak</div>
           </div>
-          
           <div class="stats-grid">
             <div class="stat-item easy">
               <div class="stat-number easy">${stats.counts.easy}</div>
@@ -198,7 +220,7 @@
           ${pending.length > 0 ? 
             pending.map((item, index) => `
               <div class="solution-item" data-index="${index}">
-                <div class="solution-header" onclick="toggleCodePreview(${index})" style="cursor: pointer;">
+                <div class="solution-header" style="cursor: pointer;" data-index="${index}">
                   <div class="solution-title">${item.title}</div>
                   <div class="solution-meta">
                     <span class="meta-tag language-tag">${item.lang || item.language}</span>
@@ -215,7 +237,7 @@
                 <div class="code-preview" id="codePreview${index}" style="display: none; margin-top: 12px;">
                   <div class="code-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                     <span style="font-size: 12px; font-weight: 500; color: #64748b;">Code Preview</span>
-                    <button onclick="copyCode(${index})" class="copy-button" style="font-size: 11px; padding: 4px 8px; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 4px; cursor: pointer;">Copy</button>
+                    <button class="copy-button" data-index="${index}" style="font-size: 11px; padding: 4px 8px; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 4px; cursor: pointer;">Copy</button>
                   </div>
                   <pre class="code-content" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; font-size: 11px; font-family: 'Monaco', 'Consolas', monospace; overflow-x: auto; max-height: 200px; overflow-y: auto;"><code>${escapeHtml(item.code || '// Code not available')}</code></pre>
                 </div>
@@ -232,7 +254,7 @@
   }
 
   function handlePush() {
-    if (!homeData?.auth?.connected) {
+    if (!homeData?.auth?.connected && !homeData?.auth?.token) {
       showPushResult('GitHub not connected. Please configure in Options.', false);
       return;
     }
@@ -253,7 +275,7 @@
       pushBtn.textContent = 'Push to GitHub';
       
       if (response?.success) {
-        showPushResult(`Successfully pushed ${response.results?.length || 0} solutions!`, true);
+        showPushResult(response.message || 'Successfully pushed solutions!', true);
         loadHomeData(); // Refresh data
       } else {
         showPushResult(`Push failed: ${response?.error || 'Unknown error'}`, false);
@@ -270,6 +292,39 @@
     setTimeout(() => {
       resultDiv.style.display = 'none';
     }, 5000);
+  }
+
+  function toggleCodePreview(index) {
+    const preview = document.getElementById(`codePreview${index}`);
+    const icon = document.getElementById(`expandIcon${index}`);
+    
+    if (preview.style.display === 'none' || preview.style.display === '') {
+      preview.style.display = 'block';
+      icon.textContent = '▲';
+    } else {
+      preview.style.display = 'none';
+      icon.textContent = '▼';
+    }
+  }
+
+  function copyCode(index) {
+    const pending = homeData?.pending || [];
+    const item = pending[index];
+    
+    if (item && item.code) {
+      navigator.clipboard.writeText(item.code).then(() => {
+        const button = document.querySelector(`[data-index="${index}"].copy-button`);
+        if (button) {
+          const originalText = button.textContent;
+          button.textContent = 'Copied!';
+          setTimeout(() => {
+            button.textContent = originalText;
+          }, 1000);
+        }
+      }).catch(err => {
+        console.error('Failed to copy code:', err);
+      });
+    }
   }
 
   function formatTimeAgo(timestamp) {
@@ -291,39 +346,4 @@
     div.textContent = text;
     return div.innerHTML;
   }
-
-  // Global functions for code preview
-  window.toggleCodePreview = function(index) {
-    const preview = document.getElementById(`codePreview${index}`);
-    const icon = document.getElementById(`expandIcon${index}`);
-    
-    if (preview.style.display === 'none') {
-      preview.style.display = 'block';
-      icon.textContent = '▲';
-    } else {
-      preview.style.display = 'none';
-      icon.textContent = '▼';
-    }
-  };
-
-  window.copyCode = function(index) {
-    if (!homeData?.pending?.[index]?.code) return;
-    
-    const code = homeData.pending[index].code;
-    navigator.clipboard.writeText(code).then(() => {
-      const button = document.querySelector(`[onclick="copyCode(${index})"]`);
-      const originalText = button.textContent;
-      button.textContent = 'Copied!';
-      button.style.background = '#dcfce7';
-      button.style.color = '#166534';
-      
-      setTimeout(() => {
-        button.textContent = originalText;
-        button.style.background = '#f1f5f9';
-        button.style.color = 'inherit';
-      }, 1500);
-    }).catch(err => {
-      console.error('Failed to copy code:', err);
-    });
-  };
 })();

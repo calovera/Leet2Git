@@ -24,34 +24,59 @@
 
   function loadSettings() {
     if (chrome && chrome.storage) {
-      chrome.storage.sync.get(['github_auth', 'repo_config'], (result) => {
+      chrome.storage.sync.get(['github_auth', 'auth', 'github_token', 'github_user', 'repo_config', 'config', 'owner', 'repo', 'branch'], (result) => {
+        // Load auth data from any available format
         if (result.github_auth) {
           auth = result.github_auth;
-          const tokenInput = document.getElementById('githubToken');
-          if (tokenInput) {
-            tokenInput.value = auth.token || '';
-          }
-          updateAuthStatus();
+        } else if (result.auth) {
+          auth = result.auth;
+        } else if (result.github_token && result.github_user) {
+          auth = {
+            token: result.github_token,
+            username: result.github_user.username,
+            email: result.github_user.email,
+            connected: result.github_user.connected
+          };
         }
         
+        const tokenInput = document.getElementById('githubToken');
+        if (tokenInput && auth.token) {
+          tokenInput.value = auth.token;
+        }
+        updateAuthStatus();
+        
+        // Load config data from any available format
         if (result.repo_config) {
           config = result.repo_config;
-          const repoOwner = document.getElementById('repoOwner');
-          const repoName = document.getElementById('repoName');
-          const repoBranch = document.getElementById('repoBranch');
-          const folderStructure = document.getElementById('folderStructure');
-          const privateRepo = document.getElementById('privateRepo');
-          const includeDescription = document.getElementById('includeDescription');
-          const includeTestCases = document.getElementById('includeTestCases');
-          
-          if (repoOwner) repoOwner.value = config.owner || '';
-          if (repoName) repoName.value = config.repo || '';
-          if (repoBranch) repoBranch.value = config.branch || 'main';
-          if (folderStructure) folderStructure.value = config.folderStructure || 'difficulty';
-          if (privateRepo) privateRepo.checked = config.private || false;
-          if (includeDescription) includeDescription.checked = config.includeDescription !== false;
-          if (includeTestCases) includeTestCases.checked = config.includeTestCases !== false;
+        } else if (result.config) {
+          config = result.config;
+        } else if (result.owner || result.repo) {
+          config = {
+            owner: result.owner || '',
+            repo: result.repo || '',
+            branch: result.branch || 'main',
+            folderStructure: 'difficulty',
+            private: false,
+            includeDescription: true,
+            includeTestCases: true
+          };
         }
+        
+        const repoOwner = document.getElementById('repoOwner');
+        const repoName = document.getElementById('repoName');
+        const repoBranch = document.getElementById('repoBranch');
+        const folderStructure = document.getElementById('folderStructure');
+        const privateRepo = document.getElementById('privateRepo');
+        const includeDescription = document.getElementById('includeDescription');
+        const includeTestCases = document.getElementById('includeTestCases');
+        
+        if (repoOwner) repoOwner.value = config.owner || '';
+        if (repoName) repoName.value = config.repo || '';
+        if (repoBranch) repoBranch.value = config.branch || 'main';
+        if (folderStructure) folderStructure.value = config.folderStructure || 'difficulty';
+        if (privateRepo) privateRepo.checked = config.private || false;
+        if (includeDescription) includeDescription.checked = config.includeDescription !== false;
+        if (includeTestCases) includeTestCases.checked = config.includeTestCases !== false;
       });
     }
   }
@@ -88,7 +113,17 @@
           connected: true
         };
         
-        chrome.storage.sync.set({ github_auth: auth }, () => {
+        // Store in multiple formats for compatibility
+        chrome.storage.sync.set({ 
+          github_auth: auth,
+          auth: auth,
+          github_token: token,
+          github_user: {
+            username: data.login,
+            email: data.email,
+            connected: true
+          }
+        }, () => {
           updateAuthStatus();
           showStatus(`Successfully connected as ${data.login}`, true);
         });
@@ -132,7 +167,14 @@
       return;
     }
 
-    chrome.storage.sync.set({ repo_config: newConfig }, () => {
+    // Store in multiple formats for compatibility
+    chrome.storage.sync.set({ 
+      repo_config: newConfig,
+      config: newConfig,
+      owner: newConfig.owner,
+      repo: newConfig.repo,
+      branch: newConfig.branch
+    }, () => {
       config = newConfig;
       showStatus('Settings saved successfully', true);
     });
