@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leet2Git Extension - Complete Test Suite</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1000px;
+            margin: 20px auto;
+            padding: 20px;
+            line-height: 1.6;
+            background: #f8fafc;
+        }
+        .test-container {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1 { color: #1e293b; border-bottom: 3px solid #4f46e5; padding-bottom: 10px; }
+        h2 { color: #374151; margin-top: 30px; }
+        .test-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0; }
+        .test-section {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 20px;
+        }
+        .status {
+            padding: 12px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-weight: 500;
+        }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        .info { background: #e7f3ff; color: #0c5460; border: 1px solid #b3d9ff; }
+        button {
+            background: #4f46e5;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+            font-weight: 500;
+        }
+        button:hover { background: #4338ca; }
+        button:disabled { background: #9ca3af; cursor: not-allowed; }
+        .test-results {
+            background: #f1f3f4;
+            border-radius: 6px;
+            padding: 15px;
+            margin-top: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .critical-test { border-left: 4px solid #dc2626; }
+        .feature-test { border-left: 4px solid #2563eb; }
+        .integration-test { border-left: 4px solid #059669; }
+        pre {
+            background: #1f2937;
+            color: #f9fafb;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🔧 Leet2Git Extension - Complete Test Suite</h1>
+        <p><strong>Status:</strong> Testing all functionality for production readiness</p>
+
+        <div class="test-grid">
+            <!-- Critical Tests -->
+            <div class="test-section critical-test">
+                <h3>🚨 Critical Tests</h3>
+                <div id="extensionCheck" class="status warning">Extension not checked</div>
+                <button onclick="runCriticalTests()">Run Critical Tests</button>
+            </div>
+
+            <!-- Feature Tests -->
+            <div class="test-section feature-test">
+                <h3>⚙️ Feature Tests</h3>
+                <div id="featureStatus" class="status warning">Features not tested</div>
+                <button onclick="runFeatureTests()">Run Feature Tests</button>
+            </div>
+
+            <!-- Integration Tests -->
+            <div class="test-section integration-test">
+                <h3>🔗 Integration Tests</h3>
+                <div id="integrationStatus" class="status warning">Integration not tested</div>
+                <button onclick="runIntegrationTests()">Run Integration Tests</button>
+            </div>
+
+            <!-- LeetCode Simulation -->
+            <div class="test-section">
+                <h3>🎯 LeetCode Simulation</h3>
+                <div id="leetcodeStatus" class="status warning">Simulation not run</div>
+                <button onclick="simulateLeetCodeSubmission()">Simulate LeetCode</button>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>Complete Test Execution</h2>
+            <button onclick="runAllTests()" style="background: #059669; font-size: 16px; padding: 15px 30px;">
+                Run All Tests
+            </button>
+            <button onclick="resetExtension()" style="background: #dc2626;">
+                Reset Extension Data
+            </button>
+        </div>
+
+        <div id="testResults" class="test-results" style="display: none;">
+            <h3>Test Results</h3>
+            <div id="resultsContent"></div>
+        </div>
+    </div>
+
+    <script>
+        let testResults = [];
+        let testRunning = false;
+
+        function logResult(test, status, details = '') {
+            testResults.push({
+                test,
+                status,
+                details,
+                timestamp: new Date().toLocaleTimeString()
+            });
+            updateResults();
+        }
+
+        function updateResults() {
+            const resultsDiv = document.getElementById('testResults');
+            const contentDiv = document.getElementById('resultsContent');
+            
+            resultsDiv.style.display = 'block';
+            
+            const passed = testResults.filter(r => r.status === 'PASS').length;
+            const failed = testResults.filter(r => r.status === 'FAIL').length;
+            
+            let html = `<div style="margin-bottom: 15px;">
+                <strong>Results:</strong> ${testResults.length} tests | 
+                <span style="color: #059669;">${passed} passed</span> | 
+                <span style="color: #dc2626;">${failed} failed</span>
+            </div>`;
+            
+            testResults.forEach(result => {
+                const icon = result.status === 'PASS' ? '✅' : '❌';
+                const color = result.status === 'PASS' ? '#059669' : '#dc2626';
+                html += `<div style="margin: 8px 0; padding: 8px; background: ${result.status === 'PASS' ? '#f0fdf4' : '#fef2f2'}; border-radius: 4px;">
+                    <strong style="color: ${color};">${icon} ${result.test}</strong><br>
+                    <small style="color: #6b7280;">${result.timestamp} - ${result.details}</small>
+                </div>`;
+            });
+            
+            contentDiv.innerHTML = html;
+        }
+
+        async function runCriticalTests() {
+            document.getElementById('extensionCheck').textContent = 'Running critical tests...';
+            document.getElementById('extensionCheck').className = 'status warning';
+
+            // Test 1: Extension Installation
+            if (typeof chrome === 'undefined' || !chrome.runtime) {
+                logResult('Extension Installation', 'FAIL', 'Chrome APIs not available');
+                document.getElementById('extensionCheck').textContent = 'CRITICAL FAILURE: Extension not installed';
+                document.getElementById('extensionCheck').className = 'status error';
+                return false;
+            }
+            logResult('Extension Installation', 'PASS', 'Chrome APIs available');
+
+            // Test 2: Background Script Communication
+            try {
+                const response = await new Promise((resolve, reject) => {
+                    chrome.runtime.sendMessage({ type: 'getHomeData' }, (response) => {
+                        if (chrome.runtime.lastError) {
+                            reject(chrome.runtime.lastError);
+                        } else {
+                            resolve(response);
+                        }
+                    });
+                });
+                
+                if (response) {
+                    logResult('Background Script', 'PASS', 'Communication successful');
+                } else {
+                    logResult('Background Script', 'FAIL', 'No response received');
+                }
+            } catch (error) {
+                logResult('Background Script', 'FAIL', error.message);
+            }
+
+            // Test 3: Storage Access
+            try {
+                await new Promise((resolve, reject) => {
+                    chrome.storage.sync.set({ test_critical: 'working' }, () => {
+                        if (chrome.runtime.lastError) {
+                            reject(chrome.runtime.lastError);
+                        } else {
+                            resolve();
+                        }
+                    });
+                });
+                
+                const result = await new Promise((resolve) => {
+                    chrome.storage.sync.get(['test_critical'], resolve);
+                });
+                
+                if (result.test_critical === 'working') {
+                    logResult('Storage Access', 'PASS', 'Read/write operations work');
+                    chrome.storage.sync.remove(['test_critical']);
+                } else {
+                    logResult('Storage Access', 'FAIL', 'Data verification failed');
+                }
+            } catch (error) {
+                logResult('Storage Access', 'FAIL', error.message);
+            }
+
+            document.getElementById('extensionCheck').textContent = 'Critical tests completed';
+            document.getElementById('extensionCheck').className = 'status success';
+            return true;
+        }
+
+        async function runFeatureTests() {
+            document.getElementById('featureStatus').textContent = 'Testing features...';
+            document.getElementById('featureStatus').className = 'status warning';
+
+            // Test GitHub Auth Storage
+            try {
+                const authData = await new Promise((resolve) => {
+                    chrome.storage.sync.get(['github_auth'], resolve);
+                });
+                
+                if (authData.github_auth && authData.github_auth.connected) {
+                    logResult('GitHub Authentication', 'PASS', `Connected as ${authData.github_auth.username}`);
+                } else {
+                    logResult('GitHub Authentication', 'FAIL', 'Not configured - check options page');
+                }
+            } catch (error) {
+                logResult('GitHub Authentication', 'FAIL', error.message);
+            }
+
+            // Test Repository Config
+            try {
+                const configData = await new Promise((resolve) => {
+                    chrome.storage.sync.get(['repo_config'], resolve);
+                });
+                
+                if (configData.repo_config && configData.repo_config.owner && configData.repo_config.repo) {
+                    logResult('Repository Config', 'PASS', `${configData.repo_config.owner}/${configData.repo_config.repo}`);
+                } else {
+                    logResult('Repository Config', 'FAIL', 'Repository not configured');
+                }
+            } catch (error) {
+                logResult('Repository Config', 'FAIL', error.message);
+            }
+
+            // Test Pending Solutions
+            try {
+                const pendingData = await new Promise((resolve) => {
+                    chrome.storage.sync.get(['pending'], resolve);
+                });
+                
+                const pending = pendingData.pending || [];
+                logResult('Pending Solutions', 'PASS', `Found ${pending.length} pending solutions`);
+            } catch (error) {
+                logResult('Pending Solutions', 'FAIL', error.message);
+            }
+
+            document.getElementById('featureStatus').textContent = 'Feature tests completed';
+            document.getElementById('featureStatus').className = 'status success';
+        }
+
+        async function runIntegrationTests() {
+            document.getElementById('integrationStatus').textContent = 'Testing integrations...';
+            document.getElementById('integrationStatus').className = 'status warning';
+
+            // Test Add Solution via Background Script
+            try {
+                const testSolution = {
+                    id: `test-integration-${Date.now()}`,
+                    title: "Integration Test Problem",
+                    slug: "integration-test",
+                    difficulty: "Easy",
+                    language: "JavaScript",
+                    code: "function test() { return 'integration'; }",
+                    timestamp: Date.now()
+                };
+
+                const response = await new Promise((resolve) => {
+                    chrome.runtime.sendMessage({
+                        type: 'solved_dom',
+                        payload: testSolution
+                    }, resolve);
+                });
+
+                if (response && response.success) {
+                    logResult('Solution Integration', 'PASS', 'Background script accepted solution');
+                } else {
+                    logResult('Solution Integration', 'FAIL', 'Background script rejected solution');
+                }
+            } catch (error) {
+                logResult('Solution Integration', 'FAIL', error.message);
+            }
+
+            // Test Push Functionality
+            try {
+                const pushResponse = await new Promise((resolve) => {
+                    chrome.runtime.sendMessage({ type: 'push' }, resolve);
+                });
+
+                if (pushResponse) {
+                    if (pushResponse.success) {
+                        logResult('Push Integration', 'PASS', 'Push completed successfully');
+                    } else {
+                        logResult('Push Integration', 'FAIL', `Push failed: ${pushResponse.error}`);
+                    }
+                } else {
+                    logResult('Push Integration', 'FAIL', 'No response from push handler');
+                }
+            } catch (error) {
+                logResult('Push Integration', 'FAIL', error.message);
+            }
+
+            document.getElementById('integrationStatus').textContent = 'Integration tests completed';
+            document.getElementById('integrationStatus').className = 'status success';
+        }
+
+        async function simulateLeetCodeSubmission() {
+            document.getElementById('leetcodeStatus').textContent = 'Simulating LeetCode submission...';
+            document.getElementById('leetcodeStatus').className = 'status warning';
+
+            const solutions = [
+                {
+                    id: `two-sum-python-${Date.now()}`,
+                    title: "Two Sum",
+                    slug: "two-sum",
+                    difficulty: "Easy",
+                    description: "Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.",
+                    code: `def twoSum(self, nums, target):
+    hashmap = {}
+    for i, num in enumerate(nums):
+        complement = target - num
+        if complement in hashmap:
+            return [hashmap[complement], i]
+        hashmap[num] = i
+    return []`,
+                    language: "Python",
+                    timestamp: Date.now()
+                },
+                {
+                    id: `valid-parentheses-javascript-${Date.now()}`,
+                    title: "Valid Parentheses",
+                    slug: "valid-parentheses",
+                    difficulty: "Easy",
+                    description: "Given a string s containing just the characters '(', ')', '{', '}', '[' and ']', determine if the input string is valid.",
+                    code: `function isValid(s) {
+    const stack = [];
+    const map = { ')': '(', '}': '{', ']': '[' };
+    
+    for (let char of s) {
+        if (char in map) {
+            if (stack.pop() !== map[char]) return false;
+        } else {
+            stack.push(char);
+        }
+    }
+    
+    return stack.length === 0;
+}`,
+                    language: "JavaScript",
+                    timestamp: Date.now() + 1000
+                }
+            ];
+
+            let successCount = 0;
+            for (const solution of solutions) {
+                try {
+                    const response = await new Promise((resolve) => {
+                        chrome.runtime.sendMessage({
+                            type: 'solved_dom',
+                            payload: solution
+                        }, resolve);
+                    });
+
+                    if (response && response.success) {
+                        successCount++;
+                        logResult(`LeetCode Simulation - ${solution.title}`, 'PASS', `${solution.language} solution added`);
+                    } else {
+                        logResult(`LeetCode Simulation - ${solution.title}`, 'FAIL', 'Solution not accepted');
+                    }
+                } catch (error) {
+                    logResult(`LeetCode Simulation - ${solution.title}`, 'FAIL', error.message);
+                }
+            }
+
+            if (successCount === solutions.length) {
+                document.getElementById('leetcodeStatus').textContent = `All ${successCount} simulated solutions added successfully`;
+                document.getElementById('leetcodeStatus').className = 'status success';
+            } else {
+                document.getElementById('leetcodeStatus').textContent = `${successCount}/${solutions.length} simulations successful`;
+                document.getElementById('leetcodeStatus').className = 'status warning';
+            }
+        }
+
+        async function runAllTests() {
+            if (testRunning) return;
+            testRunning = true;
+            
+            testResults = [];
+            updateResults();
+            
+            console.log('🔧 Starting comprehensive extension test...');
+            
+            const success1 = await runCriticalTests();
+            if (!success1) {
+                testRunning = false;
+                return;
+            }
+            
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            await runFeatureTests();
+            
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            await runIntegrationTests();
+            
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            await simulateLeetCodeSubmission();
+            
+            const passed = testResults.filter(r => r.status === 'PASS').length;
+            const total = testResults.length;
+            
+            console.log(`🏁 Test complete: ${passed}/${total} tests passed`);
+            
+            if (passed === total) {
+                logResult('OVERALL RESULT', 'PASS', 'Extension is production ready!');
+            } else {
+                logResult('OVERALL RESULT', 'FAIL', `${total - passed} tests failed - check configuration`);
+            }
+            
+            testRunning = false;
+        }
+
+        async function resetExtension() {
+            if (confirm('This will clear ALL extension data. Continue?')) {
+                try {
+                    await new Promise((resolve) => {
+                        chrome.storage.sync.clear(resolve);
+                    });
+                    logResult('Reset Extension', 'PASS', 'All data cleared');
+                    location.reload();
+                } catch (error) {
+                    logResult('Reset Extension', 'FAIL', error.message);
+                }
+            }
+        }
+
+        // Auto-run basic check on load
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                if (typeof chrome !== 'undefined' && chrome.runtime) {
+                    document.getElementById('extensionCheck').textContent = 'Extension detected - ready for testing';
+                    document.getElementById('extensionCheck').className = 'status info';
+                } else {
+                    document.getElementById('extensionCheck').textContent = 'Extension not detected - install first';
+                    document.getElementById('extensionCheck').className = 'status error';
+                }
+            }, 500);
+        });
+    </script>
+</body>
+</html>
