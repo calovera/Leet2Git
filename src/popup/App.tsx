@@ -1,185 +1,210 @@
+
 import React, { useState, useEffect } from 'react';
-import { createRoot } from 'react-dom/client';
-import HomeStats from './components/HomeStats';
-import PushPanel from './components/PushPanel';
-import '../index.css';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { GitBranch, Github, Settings, RefreshCw } from 'lucide-react';
+import { HomeStats } from './components/HomeStats';
+import { PushPanel } from './components/PushPanel';
 
-interface HomeData {
-  streak: number;
-  counts: {
-    easy: number;
-    medium: number;
-    hard: number;
-  };
-  recentSolves: Array<{
-    id: string;
-    title: string;
-    language: string;
-    timestamp: Date;
-  }>;
+interface GitHubUser {
+  username: string;
+  email: string;
+  connected: boolean;
 }
 
-interface PendingItem {
-  id: string;
-  title: string;
-  language: string;
+interface LeetCodeStatus {
+  connected: boolean;
+  username?: string;
+  error?: string;
 }
 
-const App: React.FC = () => {
-  const [tab, setTab] = useState<'home' | 'push'>('home');
-  const [stats, setStats] = useState<HomeData>({
-    streak: 0,
-    counts: { easy: 0, medium: 0, hard: 0 },
-    recentSolves: []
-  });
-  const [pending, setPending] = useState<PendingItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+export default function ExtensionApp() {
+  const [githubUser, setGithubUser] = useState<GitHubUser | null>(null);
+  const [leetcodeStatus, setLeetcodeStatus] = useState<LeetCodeStatus>({ connected: false });
+  const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
-    loadHomeData();
+    loadUserData();
+    checkLeetCodeStatus();
   }, []);
 
-  const loadHomeData = async () => {
+  const loadUserData = async () => {
     try {
-      setIsLoading(true);
-      
-      // Send message to background script
-      const response = await chrome.runtime.sendMessage({ 
-        type: 'getHomeData' 
-      });
-      
-      if (response && response.stats) {
-        setStats(response.stats);
-      }
-      
-      if (response && response.pending) {
-        setPending(response.pending);
+      const result = await chrome.storage.local.get(['github_user']);
+      if (result.github_user) {
+        setGithubUser(result.github_user);
       }
     } catch (error) {
-      console.error('Failed to load home data:', error);
-      // Set placeholder data for development
-      setStats({
-        streak: 7,
-        counts: { easy: 12, medium: 8, hard: 3 },
-        recentSolves: [
-          {
-            id: '1',
-            title: 'Two Sum',
-            language: 'Python',
-            timestamp: new Date(Date.now() - 5 * 60 * 1000)
-          },
-          {
-            id: '2',
-            title: 'Add Two Numbers',
-            language: 'JavaScript',
-            timestamp: new Date(Date.now() - 15 * 60 * 1000)
-          },
-          {
-            id: '3',
-            title: 'Longest Substring',
-            language: 'Java',
-            timestamp: new Date(Date.now() - 45 * 60 * 1000)
-          }
-        ]
-      });
-      setPending([
-        { id: '1', title: 'Valid Parentheses', language: 'Python' },
-        { id: '2', title: 'Merge Two Lists', language: 'JavaScript' }
-      ]);
+      console.error('Failed to load user data:', error);
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  const refreshData = () => {
-    loadHomeData();
+  const checkLeetCodeStatus = async () => {
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: 'CHECK_LEETCODE_STATUS'
+      });
+      setLeetcodeStatus(response);
+    } catch (error) {
+      console.error('Failed to check LeetCode status:', error);
+      setLeetcodeStatus({ connected: false, error: 'Failed to check status' });
+    }
   };
 
-  if (isLoading) {
+  const handleGitHubAuth = () => {
+    const clientId = 'your_github_client_id'; // Replace with your actual client ID
+    const redirectUri = chrome.identity.getRedirectURL();
+    const authUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=repo`;
+    
+    chrome.identity.launchWebAuthFlow({
+      url: authUrl,
+      interactive: true
+    }, (responseUrl) => {
+      if (responseUrl) {
+        const url = new URL(responseUrl);
+        const code = url.searchParams.get('code');
+        if (code) {
+          chrome.runtime.sendMessage({
+            type: 'GITHUB_AUTH',
+            code: code
+          }, (response) => {
+            if (response.success) {
+              setGithubUser(response.user);
+            } else {
+              console.error('Auth failed:', response.error);
+            }
+          });
+        }
+      }
+    });
+  };
+
+  const handleSync = async () => {
+    setSyncing(true);
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: 'SYNC_SOLUTIONS'
+      });
+      
+      if (response.error) {
+        console.error('Sync failed:', response.error);
+      } else {
+        console.log('Sync completed:', response);
+      }
+    } catch (error) {
+      console.error('Sync error:', error);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const openOptions = () => {
+    chrome.runtime.openOptionsPage();
+  };
+
+  const openLeetCode = () => {
+    chrome.tabs.create({ url: 'https://leetcode.com' });
+  };
+
+  if (loading) {
     return (
-      <div className="w-80 h-96 bg-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-          <p className="text-sm text-slate-600">Loading...</p>
+      <div className="chrome-extension-popup p-4">
+        <div className="flex items-center justify-center h-32">
+          <RefreshCw className="animate-spin h-6 w-6" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="w-80 bg-white">
-      {/* Header */}
-      <div className="px-4 py-3 border-b border-slate-200">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <div className="w-6 h-6 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-md flex items-center justify-center">
-              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-              </svg>
+    <div className="chrome-extension-popup">
+      <Card className="border-0 shadow-none">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg font-semibold">Leet2Git</CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={openOptions}
+              className="h-8 w-8 p-0"
+            >
+              <Settings className="h-4 w-4" />
+            </Button>
+          </div>
+        </CardHeader>
+        
+        <CardContent className="space-y-4">
+          {/* Connection Status */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Github className="h-4 w-4" />
+                <span className="text-sm font-medium">GitHub</span>
+              </div>
+              <Badge variant={githubUser?.connected ? "default" : "secondary"}>
+                {githubUser?.connected ? "Connected" : "Not Connected"}
+              </Badge>
             </div>
-            <h1 className="text-lg font-semibold text-slate-900">Leet2Git</h1>
+            
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <GitBranch className="h-4 w-4" />
+                <span className="text-sm font-medium">LeetCode</span>
+              </div>
+              <Badge variant={leetcodeStatus.connected ? "default" : "secondary"}>
+                {leetcodeStatus.connected ? "Connected" : "Not Connected"}
+              </Badge>
+            </div>
           </div>
-          <button 
-            onClick={() => chrome.runtime.openOptionsPage()}
-            className="p-1.5 hover:bg-slate-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          >
-            <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-          </button>
-        </div>
-      </div>
 
-      {/* Tab Navigation */}
-      <div className="flex border-b border-slate-200">
-        <button
-          onClick={() => setTab('home')}
-          className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
-            tab === 'home'
-              ? 'text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-          }`}
-        >
-          Home
-        </button>
-        <button
-          onClick={() => setTab('push')}
-          className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
-            tab === 'push'
-              ? 'text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-          }`}
-        >
-          Push ({pending.length})
-        </button>
-      </div>
+          {/* Stats */}
+          <HomeStats />
 
-      {/* Tab Content */}
-      <div className="p-4">
-        {tab === 'home' && (
-          <div className="animate-in fade-in duration-200">
-            <HomeStats stats={stats} />
+          {/* Actions */}
+          <div className="space-y-2">
+            {!githubUser?.connected ? (
+              <Button onClick={handleGitHubAuth} className="w-full">
+                <Github className="h-4 w-4 mr-2" />
+                Connect GitHub
+              </Button>
+            ) : (
+              <div className="space-y-2">
+                <Button 
+                  onClick={handleSync} 
+                  disabled={syncing || !leetcodeStatus.connected}
+                  className="w-full"
+                >
+                  {syncing ? (
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <GitBranch className="h-4 w-4 mr-2" />
+                  )}
+                  {syncing ? "Syncing..." : "Sync Solutions"}
+                </Button>
+                
+                <PushPanel />
+              </div>
+            )}
+            
+            {!leetcodeStatus.connected && (
+              <Button variant="outline" onClick={openLeetCode} className="w-full">
+                Open LeetCode
+              </Button>
+            )}
           </div>
-        )}
-        {tab === 'push' && (
-          <div className="animate-in fade-in duration-200">
-            <PushPanel 
-              pending={pending} 
-              setPending={setPending}
-              onPushComplete={refreshData}
-            />
-          </div>
-        )}
-      </div>
+
+          {/* User Info */}
+          {githubUser?.connected && (
+            <div className="text-xs text-muted-foreground text-center">
+              Connected as {githubUser.username}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
-};
-
-const container = document.getElementById('root');
-if (container) {
-  const root = createRoot(container);
-  root.render(<App />);
 }
-
-export default App;
