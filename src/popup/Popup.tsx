@@ -207,9 +207,25 @@ const HomeSection = ({ stats }: { stats: Stats }) => {
   );
 };
 
-const PushSection = ({ pending, auth }: { pending: PendingItem[], auth: GitHubAuth | null }) => {
+const PushSection = ({ pending, auth, setHomeData, fetchData }: { 
+  pending: PendingItem[], 
+  auth: GitHubAuth | null,
+  setHomeData: React.Dispatch<React.SetStateAction<HomeData>>,
+  fetchData: () => void
+}) => {
   const [isPushing, setIsPushing] = useState(false);
   const [pushStatus, setPushStatus] = useState<string>('');
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+
+  const toggleCodePreview = (itemId: string) => {
+    const newExpanded = new Set(expandedItems);
+    if (newExpanded.has(itemId)) {
+      newExpanded.delete(itemId);
+    } else {
+      newExpanded.add(itemId);
+    }
+    setExpandedItems(newExpanded);
+  };
 
   const handleSync = async () => {
     if (!auth || !auth.connected) {
@@ -228,6 +244,8 @@ const PushSection = ({ pending, auth }: { pending: PendingItem[], auth: GitHubAu
       
       if (response.success) {
         setPushStatus(`Successfully synced ${response.count || 0} solutions!`);
+        // Refresh data to clear pending solutions
+        fetchData();
       } else {
         setPushStatus(`Error: ${response.error || 'Unknown error occurred'}`);
       }
@@ -354,7 +372,7 @@ const PushSection = ({ pending, auth }: { pending: PendingItem[], auth: GitHubAu
   );
 };
 
-const SettingsSection = ({ auth, config }: { auth: GitHubAuth | null, config: RepoCfg }) => {
+const SettingsSection = ({ auth, config, setHomeData }: { auth: GitHubAuth | null, config: RepoCfg, setHomeData: React.Dispatch<React.SetStateAction<HomeData>> }) => {
   const [token, setToken] = useState('');
   const [repoOwner, setRepoOwner] = useState(config?.owner || '');
   const [repoName, setRepoName] = useState(config?.repo || 'leetcode-solutions');
@@ -812,11 +830,11 @@ const Popup: React.FC = () => {
         )}
         
         {activeTab === 'push' && homeData && (
-          <PushSection pending={homeData.pending} auth={homeData.auth} />
+          <PushSection pending={homeData.pending} auth={homeData.auth} setHomeData={setHomeData} fetchData={fetchData} />
         )}
         
         {activeTab === 'settings' && homeData && (
-          <SettingsSection auth={homeData.auth} config={homeData.config} />
+          <SettingsSection auth={homeData.auth} config={homeData.config} setHomeData={setHomeData} />
         )}
       </div>
     </div>
