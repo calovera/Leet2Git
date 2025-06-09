@@ -209,22 +209,12 @@ function extractProblemInfo() {
 
 async function handleAuth(sendResponse: (response: any) => void) {
   try {
-    const result = await chrome.identity.launchWebAuthFlow({
-      url: 'https://github.com/login/oauth/authorize?client_id=your_client_id&scope=repo',
-      interactive: true
+    // For development, we'll use GitHub Personal Access Token approach
+    // In production, you'd implement proper OAuth flow with a backend
+    sendResponse({ 
+      success: false, 
+      error: 'Please use GitHub Personal Access Token in Options page for authentication' 
     });
-    
-    if (result) {
-      const code = new URL(result).searchParams.get('code');
-      if (code) {
-        // Exchange code for token (this would need a server endpoint)
-        sendResponse({ success: true, code });
-      } else {
-        sendResponse({ error: 'No authorization code received' });
-      }
-    } else {
-      sendResponse({ error: 'Authentication cancelled' });
-    }
   } catch (error) {
     sendResponse({ 
       error: error instanceof Error ? error.message : 'Authentication failed' 
@@ -252,7 +242,7 @@ async function handlePush(sendResponse: (response: any) => void) {
       return;
     }
     
-    const results = [];
+    const results: Array<{item: string; success: boolean; path?: string; error?: string}> = [];
     
     for (const item of pending) {
       try {
