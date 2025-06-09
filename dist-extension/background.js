@@ -5,8 +5,10 @@ console.log("Leet2Git background script loaded");
 const tabData = new Map(); // tabId -> { slug: string, metadata: object, submissionCode: string }
 const submissionToTab = new Map(); // submissionId -> tabId
 
-// Question metadata cache
+// Question metadata cache and temporary code storage
 const questionCache = new Map();
+const tempCodeStorage = new Map(); // question_id -> { code, lang, question_id, timestamp }
+const recentSubmissions = new Map(); // slug+lang -> timestamp for deduplication
 
 // Helper functions for question metadata
 function parseQuestionMeta(res) {
@@ -38,6 +40,36 @@ function toPascalCase(str) {
     word.charAt(0).toUpperCase() + word.slice(1)
   ).join('');
 }
+
+// A. Capture typed_code + lang from submit requests
+chrome.webRequest.onBeforeRequest.addListener(
+  (details) => {
+    if (details.method === 'POST' && details.requestBody && details.requestBody.raw) {
+      try {
+        const rawData = details.requestBody.raw[0].bytes;
+        const decoder = new TextDecoder();
+        const bodyText = decoder.decode(rawData);
+        const submitData = JSON.parse(bodyText);
+        
+        if (submitData.typed_code && submitData.lang && submitData.question_id) {
+          const codeRecord = {
+            code: submitData.typed_code,
+            lang: submitData.lang,
+            question_id: submitData.question_id,
+            timestamp: Date.now()
+          };
+          
+          tempCodeStorage.set(submitData.question_id, codeRecord);
+          console.log(`[Leet2Git] Code captured for question ${submitData.question_id}`);
+        }
+      } catch (error) {
+        console.error('[Leet2Git] Failed to parse submit request:', error);
+      }
+    }
+  },
+  { urls: ['*://leetcode.com/problems/*/submit/'] },
+  ['requestBody']
+);
 
 // Track tab navigation to LeetCode problems
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
@@ -71,64 +103,21 @@ chrome.runtime.onStartup.addListener(() => {
   updateBadge();
 });
 
-// GraphQL listener for question metadata - now tab-aware
-chrome.webRequest.onCompleted.addListener(async (details) => {
-  if (details.method !== "POST" || !details.url.startsWith("https://leetcode.com/graphql")) return;
-  if (details.statusCode !== 200 || !details.tabId) return;
-
-  try {
-    const response = await fetch(details.url, {
-      credentials: 'include',
-      headers: { 'Accept': 'application/json' }
-    });
-    
-    if (!response.ok) return;
-    
-    const data = await response.json();
-    const meta = parseQuestionMeta(data);
-    if (meta) {
-      cacheQuestionMeta(meta);
-      
-      // Update tab data if this tab is tracking this problem
-      const tabInfo = tabData.get(details.tabId);
-      if (tabInfo && tabInfo.slug === meta.slug) {
-        tabInfo.metadata = meta;
-        console.info(`[Leet2Git] Updated metadata for tab ${details.tabId}: ${meta.title}`);
-      }
+// B. Capture difficulty + primary tag from GraphQL responses
+chrome.webRequest.onResponseStarted.addListener(
+  (details) => {
+    if (details.method === 'POST' && details.statusCode === 200) {
+      // We need to use a different approach since we can't read response body directly
+      // We'll rely on the content script to send us the GraphQL data
+      console.log(`[Leet2Git] GraphQL response detected for tab ${details.tabId}`);
     }
-  } catch (error) {
-    console.error(`[Leet2Git] GraphQL parsing error:`, error);
-  }
-}, {
-  urls: ["https://leetcode.com/graphql*"]
-});
+  },
+  { urls: ['*://leetcode.com/graphql*'] }
+);
 
-// Capture submit requests to store code per tab
-chrome.webRequest.onBeforeRequest.addListener(async (details) => {
-  if (details.method !== "POST" || !details.tabId) return;
-  
-  try {
-    const tabInfo = tabData.get(details.tabId);
-    if (!tabInfo) return;
+// This handler was moved to the earlier onBeforeRequest listener
 
-    if (details.requestBody?.raw?.[0]?.bytes) {
-      const decoder = new TextDecoder();
-      const bodyText = decoder.decode(details.requestBody.raw[0].bytes);
-      const bodyData = JSON.parse(bodyText);
-      
-      if (bodyData.typed_code) {
-        tabInfo.submissionCode = bodyData.typed_code;
-        console.info(`[Leet2Git] Captured code for tab ${details.tabId} (${tabInfo.slug})`);
-      }
-    }
-  } catch (error) {
-    console.error(`[Leet2Git] Error capturing submit code:`, error);
-  }
-}, {
-  urls: ["https://leetcode.com/problems/*/submit/"]
-}, ["requestBody"]);
-
-// Primary capture method: Intercept LeetCode submission check calls
+// C. Build SolutionPayload in the submission-check handler
 chrome.webRequest.onCompleted.addListener(async (details) => {
   if (details.statusCode !== 200 || !details.tabId) return;
   
@@ -137,98 +126,114 @@ chrome.webRequest.onCompleted.addListener(async (details) => {
   if (!urlMatch) return;
   
   const submissionId = urlMatch[1];
-  console.info(`[Leet2Git] Intercepted submission check: ${submissionId} in tab ${details.tabId}`);
-  
-  // Link this submission to the tab
-  submissionToTab.set(submissionId, details.tabId);
+  console.log(`[Leet2Git] Intercepted submission check: ${submissionId}`);
   
   try {
     // Fetch the check response
     const response = await fetch(details.url, {
       credentials: 'include',
-      headers: {
-        'Accept': 'application/json',
-      }
+      headers: { 'Accept': 'application/json' }
     });
     
-    if (!response.ok) {
-      console.error(`[Leet2Git] Failed to fetch check response: ${response.status}`);
-      return;
-    }
+    if (!response.ok) return;
     
     const data = await response.json();
-    console.info(`[Leet2Git] Check response:`, data);
     
     // Only process accepted submissions
     if (data.status_msg !== "Accepted") {
-      console.info(`[Leet2Git] Submission not accepted: ${data.status_msg}`);
+      console.log(`[Leet2Git] Submission not accepted: ${data.status_msg}`);
       return;
     }
     
-    // Get tab-specific data
+    // 1. Fetch the temp code record via question_id
+    const questionId = data.question_id || data.id;
+    const codeRecord = tempCodeStorage.get(questionId);
+    
+    if (!codeRecord) {
+      console.warn(`[Leet2Git] No code record found for question ${questionId}`);
+      return;
+    }
+    
+    // 2. Get problem slug from current tab or extract from submission data
     const tabInfo = tabData.get(details.tabId);
-    if (!tabInfo) {
-      console.warn(`[Leet2Git] No tab data found for submission ${submissionId} in tab ${details.tabId}`);
+    const problemSlug = tabInfo?.slug || extractSlugFromData(data);
+    
+    if (!problemSlug) {
+      console.warn(`[Leet2Git] Could not determine problem slug`);
       return;
     }
     
-    const problemSlug = tabInfo.slug;
-    const metadata = tabInfo.metadata || getQuestionMeta(problemSlug);
-    const submissionCode = tabInfo.submissionCode;
+    // 3. Merge with meta cache via titleSlug
+    const metadata = getQuestionMeta(problemSlug);
     
-    console.info(`[Leet2Git] Processing submission for problem: ${problemSlug} in tab ${details.tabId}`);
-    
-    // Build solution payload with tab-specific data
+    // 4. Build comprehensive solution payload
     const solutionPayload = {
+      id: `${problemSlug}-${Date.now()}`,
       submissionId: submissionId,
+      title: metadata?.title || toPascalCase(problemSlug),
       slug: problemSlug,
-      title: metadata?.title || problemSlug.split('-').map(word => 
-        word.charAt(0).toUpperCase() + word.slice(1)
-      ).join(' '),
-      difficulty: metadata?.difficulty || "Medium",
+      difficulty: metadata?.difficulty || "Easy", // Default to Easy as per requirements
       tag: metadata?.tag || "Uncategorized",
-      lang: data.pretty_lang || data.lang,
-      code: submissionCode || "// Code not captured",
-      runtime: data.display_runtime + " ms",
-      memory: data.status_memory,
-      capturedAt: new Date().toISOString(),
+      code: codeRecord.code,
+      lang: codeRecord.lang,
+      runtime: data.display_runtime || "N/A",
+      memory: data.status_memory || "N/A",
       timestamp: Date.now()
     };
     
-    console.info(`[Leet2Git] Network capture successful:`, solutionPayload);
+    // 5. Remove the temp code record after use
+    tempCodeStorage.delete(questionId);
     
-    // Check for duplicates
-    const { pending = [] } = await chrome.storage.sync.get("pending");
-    const isDuplicate = pending.some(item => 
-      item.submissionId === submissionId || 
-      (item.title === solutionPayload.title && 
-       item.lang === solutionPayload.lang &&
-       Math.abs(item.timestamp - solutionPayload.timestamp) < 30000)
-    );
+    // D. Deduplicate stats but keep multi-language files
+    const storageResult = await chrome.storage.sync.get(['pending', 'solvedSlugs']);
+    const pending = storageResult.pending || [];
+    const solvedSlugs = new Set(storageResult.solvedSlugs || []);
     
-    if (isDuplicate) {
-      console.info(`[Leet2Git] Duplicate submission ${submissionId}, skipping`);
+    // Check for recent duplicate (same slug & language within 5 min)
+    const recentKey = `${problemSlug}-${codeRecord.lang}`;
+    const now = Date.now();
+    const recentTimestamp = recentSubmissions.get(recentKey);
+    
+    if (recentTimestamp && (now - recentTimestamp) < 300000) { // 5 minutes
+      console.log(`[Leet2Git] Ignoring duplicate submission within 5 minutes`);
       return;
     }
     
-    // Add to pending solutions
+    // Always allow into pending (different languages welcome)
     pending.push(solutionPayload);
-    await chrome.storage.sync.set({ pending });
+    recentSubmissions.set(recentKey, now);
     
-    // Update stats
-    await updateStats(solutionPayload);
+    // Increment stats only if slug not in solved set
+    if (!solvedSlugs.has(problemSlug)) {
+      solvedSlugs.add(problemSlug);
+      await updateStats(solutionPayload);
+      console.log(`[Leet2Git] Updated stats for new problem: ${problemSlug}`);
+    } else {
+      console.log(`[Leet2Git] Problem already solved, stats unchanged: ${problemSlug}`);
+    }
     
-    // Update badge
+    // Save updated data
+    await chrome.storage.sync.set({ 
+      pending,
+      solvedSlugs: Array.from(solvedSlugs)
+    });
+    
     await updateBadge();
     
-    console.info(`[Leet2Git] Successfully captured submission ${submissionId} for ${solutionPayload.title}`);
+    console.log(`[Leet2Git] Successfully captured: ${solutionPayload.title} (${codeRecord.lang})`);
     
   } catch (error) {
-    console.error(`[Leet2Git] Error processing submission ${submissionId}:`, error);
+    console.error(`[Leet2Git] Error processing submission:`, error);
   }
 }, {
   urls: ["https://leetcode.com/submissions/detail/*/check/"]
 });
+
+// Helper function to extract slug from submission data
+function extractSlugFromData(data) {
+  // Try to extract from various possible fields in the response
+  return data.titleSlug || data.question_slug || null;
+}
 
 // Get stored submission code
 async function getStoredSubmissionCode(submissionId) {
