@@ -1,242 +1,376 @@
+import { ChromeMessage, SolutionPayload, PendingItem, HomeData } from './types/models';
+import { 
+  getStats, 
+  updateStats, 
+  getPending, 
+  addPending, 
+  removePending, 
+  clearPending, 
+  getAuth, 
+  setAuth, 
+  getConfig 
+} from './utils/storage';
+import { 
+  upsertFile, 
+  generateFilePath, 
+  generateFileContent, 
+  createRepository,
+  verifyToken 
+} from './utils/github';
+
+console.log('Leet2Git extension background script loaded');
+
+// Update badge with pending count
+async function updateBadge() {
+  const pending = await getPending();
+  const text = pending.length > 0 ? pending.length.toString() : '';
+  chrome.action.setBadgeText({ text });
+  chrome.action.setBadgeBackgroundColor({ color: '#3B82F6' });
+}
+
 chrome.runtime.onInstalled.addListener(() => {
   console.log('Leet2Git extension installed');
+  updateBadge();
 });
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+chrome.runtime.onStartup.addListener(() => {
+  updateBadge();
+});
+
+// Listen for LeetCode submission API calls
+chrome.webRequest.onCompleted.addListener(
+  async (details) => {
+    if (details.method === 'GET' && details.statusCode === 200) {
+      try {
+        // Extract submission ID from URL
+        const urlMatch = details.url.match(/\/api\/submissions\/detail\/(\d+)/);
+        if (!urlMatch) return;
+        
+        const submissionId = urlMatch[1];
+        
+        // Get the response from the tab
+        const tabs = await chrome.tabs.query({ url: 'https://leetcode.com/*' });
+        if (tabs.length === 0) return;
+        
+        const tabId = tabs[0].id!;
+        
+        // Inject script to fetch submission details
+        const results = await chrome.scripting.executeScript({
+          target: { tabId },
+          func: fetchSubmissionDetails,
+          args: [submissionId]
+        });
+        
+        if (results[0]?.result) {
+          const submissionData = results[0].result;
+          if (submissionData.status_display === 'Accepted') {
+            await handleAcceptedSubmission(submissionData, tabId);
+          }
+        }
+      } catch (error) {
+        console.error('Error processing submission:', error);
+      }
+    }
+  },
+  {
+    urls: ['https://leetcode.com/api/submissions/detail/*']
+  }
+);
+
+// Function to be injected into the page
+function fetchSubmissionDetails(submissionId: string) {
+  return fetch(`https://leetcode.com/api/submissions/detail/${submissionId}/`)
+    .then(response => response.json())
+    .catch(() => null);
+}
+
+chrome.runtime.onMessage.addListener((message: ChromeMessage, sender, sendResponse) => {
   switch (message.type) {
-    case 'GITHUB_AUTH':
-      handleGitHubAuth(message.code, sendResponse);
-      return true; // Keep message channel open for async response
-
-    case 'SYNC_SOLUTIONS':
-      handleSyncSolutions(sendResponse);
+    case 'auth':
+      handleAuth(sendResponse);
       return true;
-
-    case 'CHECK_LEETCODE_STATUS':
-      checkLeetCodeStatus(sendResponse);
+    
+    case 'push':
+      handlePush(sendResponse);
       return true;
-
+    
+    case 'getHomeData':
+      handleGetHomeData(sendResponse);
+      return true;
+    
+    case 'solved_dom':
+      handleSolvedFromDOM(message.payload, sendResponse);
+      return true;
+    
+    case 'updateConfig':
+      handleUpdateConfig(message.payload, sendResponse);
+      return true;
+    
     default:
       sendResponse({ error: 'Unknown message type' });
   }
 });
 
-async function handleGitHubAuth(code: string, sendResponse: (response: any) => void) {
+async function handleAcceptedSubmission(submissionData: any, tabId: number) {
   try {
-    const clientId = process.env.GITHUB_CLIENT_ID || 'your_github_client_id';
-    const clientSecret = process.env.GITHUB_CLIENT_SECRET || 'your_github_client_secret';
-    
-    const response = await fetch('https://github.com/login/oauth/access_token', {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        client_id: clientId,
-        client_secret: clientSecret,
-        code: code,
-      }),
+    // Extract problem information from the page
+    const results = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: extractProblemInfo
     });
-
-    const data = await response.json();
     
-    if (data.access_token) {
-      // Store the access token securely
-      await chrome.storage.local.set({ 
-        github_token: data.access_token 
-      });
-
-      // Get user info
-      const userResponse = await fetch('https://api.github.com/user', {
-        headers: {
-          'Authorization': `token ${data.access_token}`,
-        },
-      });
-
-      const userData = await userResponse.json();
-      
-      await chrome.storage.local.set({
-        github_user: {
-          username: userData.login,
-          email: userData.email,
-          connected: true
-        }
-      });
-
-      sendResponse({ success: true, user: userData });
-    } else {
-      sendResponse({ error: 'Failed to get access token' });
-    }
+    const problemInfo = results[0]?.result;
+    if (!problemInfo) return;
+    
+    const payload: SolutionPayload = {
+      id: `${problemInfo.slug}-${submissionData.lang}-${Date.now()}`,
+      title: problemInfo.title,
+      slug: problemInfo.slug,
+      difficulty: problemInfo.difficulty,
+      description: problemInfo.description,
+      code: submissionData.code,
+      language: submissionData.lang,
+      timestamp: Date.now(),
+      status: submissionData.status_display,
+      submissionId: submissionData.id,
+      runtime: submissionData.runtime,
+      memory: submissionData.memory
+    };
+    
+    // Create pending item
+    const pendingItem: PendingItem = {
+      id: payload.id,
+      title: payload.title,
+      slug: payload.slug,
+      language: payload.language,
+      difficulty: payload.difficulty,
+      code: payload.code,
+      timestamp: payload.timestamp,
+      description: payload.description,
+      submissionId: payload.submissionId
+    };
+    
+    // Add to pending and update stats
+    await addPending(pendingItem);
+    await updateStats({
+      id: payload.id,
+      title: payload.title,
+      language: payload.language,
+      difficulty: payload.difficulty,
+      timestamp: payload.timestamp
+    });
+    
+    await updateBadge();
+    
+    console.log('Added solution to pending:', payload.title);
   } catch (error) {
-    sendResponse({ error: error instanceof Error ? error.message : 'Authentication failed' });
+    console.error('Error handling accepted submission:', error);
   }
 }
 
-async function handleSyncSolutions(sendResponse: (response: any) => void) {
+// Function to extract problem info from LeetCode page
+function extractProblemInfo() {
   try {
-    // Get GitHub token
-    const { github_token } = await chrome.storage.local.get(['github_token']);
-    if (!github_token) {
+    const titleElement = document.querySelector('[data-cy="question-title"]') || 
+                        document.querySelector('.css-v3d350') ||
+                        document.querySelector('h1');
+    
+    const difficultyElement = document.querySelector('[diff]') ||
+                             document.querySelector('.css-dcmtd5') ||
+                             document.querySelector('[class*="difficulty"]');
+    
+    const descriptionElement = document.querySelector('[data-track-load="description_content"]') ||
+                              document.querySelector('.css-1iinkds') ||
+                              document.querySelector('.content__u3I1 .question-content');
+    
+    const title = titleElement?.textContent?.trim() || '';
+    const slug = window.location.pathname.split('/problems/')[1]?.split('/')[0] || '';
+    
+    let difficulty = 'Medium';
+    if (difficultyElement) {
+      const diffText = difficultyElement.textContent?.toLowerCase() || '';
+      if (diffText.includes('easy')) difficulty = 'Easy';
+      else if (diffText.includes('hard')) difficulty = 'Hard';
+    }
+    
+    const description = descriptionElement?.textContent?.trim() || '';
+    
+    return {
+      title,
+      slug,
+      difficulty: difficulty as 'Easy' | 'Medium' | 'Hard',
+      description
+    };
+  } catch (error) {
+    console.error('Error extracting problem info:', error);
+    return null;
+  }
+}
+
+async function handleAuth(sendResponse: (response: any) => void) {
+  try {
+    const result = await chrome.identity.launchWebAuthFlow({
+      url: 'https://github.com/login/oauth/authorize?client_id=your_client_id&scope=repo',
+      interactive: true
+    });
+    
+    if (result) {
+      const code = new URL(result).searchParams.get('code');
+      if (code) {
+        // Exchange code for token (this would need a server endpoint)
+        sendResponse({ success: true, code });
+      } else {
+        sendResponse({ error: 'No authorization code received' });
+      }
+    } else {
+      sendResponse({ error: 'Authentication cancelled' });
+    }
+  } catch (error) {
+    sendResponse({ 
+      error: error instanceof Error ? error.message : 'Authentication failed' 
+    });
+  }
+}
+
+async function handlePush(sendResponse: (response: any) => void) {
+  try {
+    const auth = await getAuth();
+    if (!auth || !auth.token) {
       sendResponse({ error: 'GitHub not connected' });
       return;
     }
-
-    // Get LeetCode submissions from content script
-    const tabs = await chrome.tabs.query({ url: 'https://leetcode.com/*' });
-    if (tabs.length === 0) {
-      sendResponse({ error: 'No LeetCode tab found' });
+    
+    const config = await getConfig();
+    if (!config.owner) {
+      sendResponse({ error: 'Repository owner not configured' });
       return;
     }
-
-    const submissions = await chrome.tabs.sendMessage(tabs[0].id!, {
-      type: 'GET_SUBMISSIONS'
-    });
-
-    if (!submissions || submissions.length === 0) {
-      sendResponse({ error: 'No submissions found' });
+    
+    const pending = await getPending();
+    if (pending.length === 0) {
+      sendResponse({ success: true, results: [] });
       return;
     }
-
-    // Sync each submission to GitHub
-    const syncResults = [];
-    for (const submission of submissions) {
+    
+    const results = [];
+    
+    for (const item of pending) {
       try {
-        const result = await syncSubmissionToGitHub(submission, github_token);
-        syncResults.push({ submission: submission.title, success: true, result });
+        const filePath = generateFilePath(item, config);
+        const fileContent = generateFileContent(item, config);
+        
+        const result = await upsertFile({
+          token: auth.token,
+          owner: config.owner,
+          repo: config.repo,
+          branch: config.branch,
+          path: filePath,
+          content: fileContent,
+          message: `Add solution: ${item.title}`
+        });
+        
+        if (result.success) {
+          await removePending(item.id);
+          results.push({
+            item: item.title,
+            success: true,
+            path: filePath
+          });
+        } else {
+          results.push({
+            item: item.title,
+            success: false,
+            error: result.error
+          });
+        }
       } catch (error) {
-        syncResults.push({ 
-          submission: submission.title, 
-          success: false, 
+        results.push({
+          item: item.title,
+          success: false,
           error: error instanceof Error ? error.message : 'Unknown error'
         });
       }
     }
-
-    sendResponse({ success: true, results: syncResults });
-  } catch (error) {
-    sendResponse({ error: error instanceof Error ? error.message : 'Sync failed' });
-  }
-}
-
-async function syncSubmissionToGitHub(submission: any, token: string) {
-  const repoName = 'leetcode-solutions';
-  const filePath = `${submission.difficulty}/${submission.title.replace(/\s+/g, '-').toLowerCase()}.${submission.language === 'JavaScript' ? 'js' : submission.language === 'Python' ? 'py' : 'cpp'}`;
-  
-  // Check if repo exists, create if not
-  const repoResponse = await fetch(`https://api.github.com/repos/${submission.username}/${repoName}`, {
-    headers: {
-      'Authorization': `token ${token}`,
-    },
-  });
-
-  if (repoResponse.status === 404) {
-    // Create repository
-    const settings = await chrome.storage.local.get(['settings']);
-    await fetch('https://api.github.com/user/repos', {
-      method: 'POST',
-      headers: {
-        'Authorization': `token ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        name: repoName,
-        description: 'Automated LeetCode solutions sync via Leet2Git extension',
-        private: settings.settings?.privateRepo || false,
-        auto_init: true,
-      }),
-    });
-  }
-
-  // Create or update file
-  const fileContent = generateFileContent(submission);
-  const encodedContent = btoa(unescape(encodeURIComponent(fileContent)));
-
-  // Check if file exists
-  const fileResponse = await fetch(`https://api.github.com/repos/${submission.username}/${repoName}/contents/${filePath}`, {
-    headers: {
-      'Authorization': `token ${token}`,
-    },
-  });
-
-  const method = fileResponse.status === 404 ? 'PUT' : 'PUT';
-  const body: any = {
-    message: `Add solution: ${submission.title}`,
-    content: encodedContent,
-  };
-
-  if (fileResponse.status !== 404) {
-    const fileData = await fileResponse.json();
-    body.sha = fileData.sha;
-  }
-
-  const response = await fetch(`https://api.github.com/repos/${submission.username}/${repoName}/contents/${filePath}`, {
-    method,
-    headers: {
-      'Authorization': `token ${token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to sync ${submission.title}: ${response.statusText}`);
-  }
-
-  return await response.json();
-}
-
-function generateFileContent(submission: any): string {
-  const { title, difficulty, description, code, language, testCases } = submission;
-  
-  let content = `/*\n * ${title}\n * Difficulty: ${difficulty}\n * \n * ${description}\n */\n\n`;
-  
-  content += code;
-  
-  if (testCases && testCases.length > 0) {
-    content += '\n\n/*\n * Test Cases:\n';
-    testCases.forEach((testCase: any, index: number) => {
-      content += ` * ${index + 1}. Input: ${testCase.input}, Expected: ${testCase.output}\n`;
-    });
-    content += ' */';
-  }
-  
-  return content;
-}
-
-async function checkLeetCodeStatus(sendResponse: (response: any) => void) {
-  try {
-    const tabs = await chrome.tabs.query({ url: 'https://leetcode.com/*' });
-    if (tabs.length === 0) {
-      sendResponse({ connected: false, error: 'No LeetCode tab found' });
-      return;
-    }
-
-    const result = await chrome.tabs.sendMessage(tabs[0].id!, {
-      type: 'CHECK_LOGIN_STATUS'
-    });
-
-    sendResponse(result);
+    
+    await updateBadge();
+    sendResponse({ success: true, results });
   } catch (error) {
     sendResponse({ 
-      connected: false, 
-      error: error instanceof Error ? error.message : 'Failed to check LeetCode status' 
+      error: error instanceof Error ? error.message : 'Push failed' 
     });
   }
 }
 
-// Auto-sync functionality
-chrome.storage.local.get(['settings'], (result) => {
-  if (result.settings?.autoSync) {
-    // Set up periodic sync (every 30 minutes)
-    chrome.alarms.create('autoSync', { periodInMinutes: 30 });
-  }
-});
-
-chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === 'autoSync') {
-    handleSyncSolutions((response) => {
-      console.log('Auto-sync completed:', response);
+async function handleGetHomeData(sendResponse: (response: any) => void) {
+  try {
+    const stats = await getStats();
+    const pending = await getPending();
+    const auth = await getAuth();
+    const config = await getConfig();
+    
+    const homeData: HomeData = {
+      stats,
+      pending,
+      auth,
+      config
+    };
+    
+    sendResponse({ success: true, data: homeData });
+  } catch (error) {
+    sendResponse({ 
+      error: error instanceof Error ? error.message : 'Failed to get home data' 
     });
   }
-});
+}
+
+async function handleSolvedFromDOM(payload: any, sendResponse: (response: any) => void) {
+  try {
+    // Check if already pending
+    const pending = await getPending();
+    const exists = pending.some(p => p.slug === payload.slug && p.language === payload.language);
+    
+    if (exists) {
+      sendResponse({ success: true, message: 'Already pending' });
+      return;
+    }
+    
+    const pendingItem: PendingItem = {
+      id: `${payload.slug}-${payload.language}-${Date.now()}`,
+      title: payload.title,
+      slug: payload.slug,
+      language: payload.language,
+      difficulty: payload.difficulty,
+      code: payload.code,
+      timestamp: Date.now(),
+      description: payload.description
+    };
+    
+    await addPending(pendingItem);
+    await updateStats({
+      id: pendingItem.id,
+      title: pendingItem.title,
+      language: pendingItem.language,
+      difficulty: pendingItem.difficulty,
+      timestamp: pendingItem.timestamp
+    });
+    
+    await updateBadge();
+    sendResponse({ success: true, message: 'Added to pending' });
+  } catch (error) {
+    sendResponse({ 
+      error: error instanceof Error ? error.message : 'Failed to handle solved DOM' 
+    });
+  }
+}
+
+async function handleUpdateConfig(config: any, sendResponse: (response: any) => void) {
+  try {
+    const { setConfig } = await import('./utils/storage');
+    await setConfig(config);
+    sendResponse({ success: true });
+  } catch (error) {
+    sendResponse({ 
+      error: error instanceof Error ? error.message : 'Failed to update config' 
+    });
+  }
+}

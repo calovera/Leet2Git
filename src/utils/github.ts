@@ -1,154 +1,169 @@
-import { getStorageData } from './storage';
-import { ConnectionStatus, Settings, LeetCodeSubmission } from '../types';
+import { RepoCfg, PendingItem } from '../types/models';
 
-export async function checkGitHubConnection(): Promise<ConnectionStatus['github']> {
-  try {
-    const token = await getStorageData('github_token');
-    const user = await getStorageData('github_user');
-    
-    if (!token || !user) {
-      return { connected: false, username: null };
-    }
-
-    // Verify token is still valid
-    const response = await fetch('https://api.github.com/user', {
-      headers: {
-        'Authorization': `token ${token}`,
-      },
-    });
-
-    if (response.ok) {
-      return { connected: true, username: user.username };
-    } else {
-      return { connected: false, username: null };
-    }
-  } catch (error) {
-    console.error('Failed to check GitHub connection:', error);
-    return { connected: false, username: null };
-  }
+interface GitHubFileRequest {
+  token: string;
+  owner: string;
+  repo: string;
+  branch: string;
+  path: string;
+  content: string;
+  message?: string;
 }
 
-export async function syncToGitHub(submission: LeetCodeSubmission, settings: Settings): Promise<void> {
-  const token = await getStorageData('github_token');
-  const user = await getStorageData('github_user');
-  
-  if (!token || !user) {
-    throw new Error('GitHub not connected');
-  }
-
-  const repoName = 'leetcode-solutions';
-  const username = user.username;
-  
-  // Create file path
-  const sanitizedTitle = submission.title.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '-').toLowerCase();
-  const extension = getFileExtension(submission.language);
-  const filePath = `${submission.difficulty}/${sanitizedTitle}.${extension}`;
-
-  // Check if repository exists
-  const repoResponse = await fetch(`https://api.github.com/repos/${username}/${repoName}`, {
-    headers: {
-      'Authorization': `token ${token}`,
-    },
-  });
-
-  if (repoResponse.status === 404) {
-    // Create repository
-    await createRepository(token, repoName, settings.privateRepo);
-  }
-
-  // Generate file content
-  const fileContent = generateFileContent(submission, settings);
-  const encodedContent = btoa(unescape(encodeURIComponent(fileContent)));
-
-  // Check if file already exists
-  const fileResponse = await fetch(`https://api.github.com/repos/${username}/${repoName}/contents/${filePath}`, {
-    headers: {
-      'Authorization': `token ${token}`,
-    },
-  });
-
-  const body: any = {
-    message: `Add solution: ${submission.title} (${submission.difficulty})`,
-    content: encodedContent,
+interface GitHubFileResponse {
+  sha?: string;
+  content?: {
+    sha: string;
   };
+}
 
-  // If file exists, get its SHA for updating
-  if (fileResponse.ok) {
-    const fileData = await fileResponse.json();
-    body.sha = fileData.sha;
-    body.message = `Update solution: ${submission.title} (${submission.difficulty})`;
-  }
-
-  // Create or update the file
-  const response = await fetch(`https://api.github.com/repos/${username}/${repoName}/contents/${filePath}`, {
-    method: 'PUT',
-    headers: {
-      'Authorization': `token ${token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(`Failed to sync to GitHub: ${errorData.message || response.statusText}`);
+export async function upsertFile({
+  token,
+  owner,
+  repo,
+  branch,
+  path,
+  content,
+  message = `Add solution: ${path}`
+}: GitHubFileRequest): Promise<{ success: boolean; error?: string }> {
+  try {
+    const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+    
+    // First, try to get the existing file to get its SHA
+    let existingSha: string | undefined;
+    try {
+      const getResponse = await fetch(apiUrl, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/vnd.github.v3+json',
+          'User-Agent': 'Leet2Git-Extension'
+        }
+      });
+      
+      if (getResponse.ok) {
+        const existingFile: GitHubFileResponse = await getResponse.json();
+        existingSha = existingFile.sha;
+      }
+    } catch (error) {
+      // File doesn't exist, that's fine
+    }
+    
+    // Prepare the request body
+    const requestBody: any = {
+      message,
+      content: btoa(unescape(encodeURIComponent(content))), // Base64 encode
+      branch
+    };
+    
+    if (existingSha) {
+      requestBody.sha = existingSha;
+    }
+    
+    // Create or update the file
+    const response = await fetch(apiUrl, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json',
+        'User-Agent': 'Leet2Git-Extension'
+      },
+      body: JSON.stringify(requestBody)
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(`GitHub API error: ${response.status} - ${errorData.message || response.statusText}`);
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Failed to upsert file to GitHub:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error occurred'
+    };
   }
 }
 
-async function createRepository(token: string, repoName: string, isPrivate: boolean): Promise<void> {
-  const response = await fetch('https://api.github.com/user/repos', {
-    method: 'POST',
-    headers: {
-      'Authorization': `token ${token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      name: repoName,
-      description: 'LeetCode solutions automatically synced via Leet2Git Chrome extension',
-      private: isPrivate,
-      auto_init: true,
-    }),
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(`Failed to create repository: ${errorData.message || response.statusText}`);
+export async function createRepository(
+  token: string,
+  name: string,
+  isPrivate: boolean = false,
+  description: string = 'Automated LeetCode solutions sync via Leet2Git extension'
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const response = await fetch('https://api.github.com/user/repos', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json',
+        'User-Agent': 'Leet2Git-Extension'
+      },
+      body: JSON.stringify({
+        name,
+        description,
+        private: isPrivate,
+        auto_init: true
+      })
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(`Failed to create repository: ${response.status} - ${errorData.message || response.statusText}`);
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Failed to create repository:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error occurred'
+    };
   }
 }
 
-function generateFileContent(submission: LeetCodeSubmission, settings: Settings): string {
+export function generateFilePath(item: PendingItem, config: RepoCfg): string {
+  const extension = getFileExtension(item.language);
+  const fileName = `${item.slug}.${extension}`;
+  
+  switch (config.folderStructure) {
+    case 'difficulty':
+      return `${item.difficulty.toLowerCase()}/${fileName}`;
+    case 'topic':
+      // For now, use difficulty as fallback for topic
+      return `${item.difficulty.toLowerCase()}/${fileName}`;
+    case 'flat':
+    default:
+      return fileName;
+  }
+}
+
+export function generateFileContent(item: PendingItem, config: RepoCfg): string {
+  const { title, difficulty, language, code, description } = item;
+  
   let content = '';
   
   // Add header comment
   content += `/*\n`;
-  content += ` * Problem: ${submission.title}\n`;
-  content += ` * Difficulty: ${submission.difficulty}\n`;
-  content += ` * Language: ${submission.language}\n`;
-  content += ` * Solved on: ${submission.timestamp.toISOString().split('T')[0]}\n`;
-  content += ` * \n`;
+  content += `Problem: ${title}\n`;
+  content += `Difficulty: ${difficulty}\n`;
+  content += `Language: ${language}\n`;
+  content += `URL: https://leetcode.com/problems/${item.slug}/\n`;
+  content += `Date: ${new Date(item.timestamp).toISOString().split('T')[0]}\n`;
+  content += `\n`;
   
-  // Add problem description if available
-  if (submission.description) {
-    const description = submission.description.substring(0, 500);
-    content += ` * Description:\n`;
-    content += ` * ${description}${description.length >= 500 ? '...' : ''}\n`;
-    content += ` * \n`;
+  if (config.includeDescription && description) {
+    content += `Description:\n`;
+    content += description.split('\n').map(line => ` * ${line}`).join('\n');
+    content += `\n`;
   }
   
   content += ` */\n\n`;
   
   // Add the solution code
-  content += submission.code;
-  
-  // Add test cases if enabled and available
-  if (settings.includeTests && submission.testCases && submission.testCases.length > 0) {
-    content += '\n\n/*\n * Test Cases:\n';
-    submission.testCases.forEach((testCase, index) => {
-      content += ` * ${index + 1}. Input: ${testCase.input}\n`;
-      content += ` *    Expected Output: ${testCase.output}\n`;
-    });
-    content += ' */';
-  }
+  content += code;
   
   return content;
 }
@@ -165,12 +180,33 @@ function getFileExtension(language: string): string {
     'C#': 'cs',
     'Go': 'go',
     'Rust': 'rs',
-    'Ruby': 'rb',
     'Swift': 'swift',
     'Kotlin': 'kt',
     'Scala': 'scala',
-    'PHP': 'php',
+    'Ruby': 'rb',
+    'PHP': 'php'
   };
   
   return extensions[language] || 'txt';
+}
+
+export async function verifyToken(token: string): Promise<{ valid: boolean; username?: string; error?: string }> {
+  try {
+    const response = await fetch('https://api.github.com/user', {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'User-Agent': 'Leet2Git-Extension'
+      }
+    });
+    
+    if (!response.ok) {
+      return { valid: false, error: 'Invalid token' };
+    }
+    
+    const user = await response.json();
+    return { valid: true, username: user.login };
+  } catch (error) {
+    return { valid: false, error: 'Failed to verify token' };
+  }
 }
