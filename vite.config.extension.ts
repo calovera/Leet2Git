@@ -24,9 +24,22 @@ export default defineConfig({
       },
       output: {
         entryFileNames: (chunkInfo) => {
-          return chunkInfo.name === "background"
-            ? "background.js"
-            : "assets/[name].js";
+          if (chunkInfo.name === "background") {
+            return "background.js";
+          }
+          if (chunkInfo.name === "popup") {
+            return "popup/index.js";
+          }
+          if (chunkInfo.name === "options") {
+            return "options/index.js";
+          }
+          if (chunkInfo.name === "content") {
+            return "content.js";
+          }
+          if (chunkInfo.name === "leetcodeHook") {
+            return "leetcode-hook.js";
+          }
+          return "assets/[name].js";
         },
         chunkFileNames: "assets/[name].js",
         assetFileNames: "assets/[name].[ext]",

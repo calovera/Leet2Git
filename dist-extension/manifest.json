@@ -48,8 +48,8 @@
         "https://leetcode.com/*"
       ],
       "resources": [
-        "assets/content.js",
-        "assets/leetcodeHook.js"
+        "content.js",
+        "leetcode-hook.js"
       ],
       "use_dynamic_url": true
     }
