@@ -1,10 +1,38 @@
 import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
-import { ConnectionStatus, SyncStatus, Settings, ActivityItem } from '../types';
-import { getStorageData, setStorageData } from '../utils/storage';
-import { checkGitHubConnection, syncToGitHub } from '../utils/github';
-import { checkLeetCodeConnection, getRecentSubmissions } from '../utils/leetcode';
 import '../index.css';
+
+interface ConnectionStatus {
+  github: {
+    connected: boolean;
+    username: string | null;
+  };
+  leetcode: {
+    connected: boolean;
+    username: string | null;
+  };
+}
+
+interface SyncStatus {
+  isRunning: boolean;
+  progress: number;
+  currentTask: string;
+  lastSync: Date | null;
+}
+
+interface Settings {
+  autoSync: boolean;
+  privateRepo: boolean;
+  includeTests: boolean;
+}
+
+interface ActivityItem {
+  id: string;
+  title: string;
+  difficulty: 'Easy' | 'Medium' | 'Hard';
+  timestamp: Date;
+  status: 'success' | 'error' | 'pending';
+}
 
 interface PopupState {
   connectionStatus: ConnectionStatus;
@@ -33,95 +61,23 @@ const Popup: React.FC = () => {
       includeTests: true
     },
     recentActivity: [],
-    isLoading: true,
+    isLoading: false,
     error: null
   });
 
-  useEffect(() => {
-    initializePopup();
-  }, []);
-
-  const initializePopup = async () => {
-    try {
-      setState(prev => ({ ...prev, isLoading: true, error: null }));
-      
-      // Load saved settings
-      const savedSettings = await getStorageData('settings');
-      if (savedSettings) {
-        setState(prev => ({ ...prev, settings: { ...prev.settings, ...savedSettings } }));
+  const handleSync = () => {
+    setState(prev => ({ 
+      ...prev, 
+      syncStatus: { 
+        ...prev.syncStatus, 
+        isRunning: true, 
+        progress: 50, 
+        currentTask: 'Syncing solutions...' 
       }
-
-      // Check connection status
-      const [githubStatus, leetcodeStatus] = await Promise.all([
-        checkGitHubConnection(),
-        checkLeetCodeConnection()
-      ]);
-
-      setState(prev => ({
-        ...prev,
-        connectionStatus: {
-          github: githubStatus,
-          leetcode: leetcodeStatus
-        }
-      }));
-
-      // Load recent activity
-      const recentActivity = await getStorageData('recentActivity') || [];
-      setState(prev => ({ ...prev, recentActivity }));
-
-    } catch (error) {
-      setState(prev => ({ 
-        ...prev, 
-        error: error instanceof Error ? error.message : 'Failed to initialize popup' 
-      }));
-    } finally {
-      setState(prev => ({ ...prev, isLoading: false }));
-    }
-  };
-
-  const handleSync = async () => {
-    try {
-      setState(prev => ({ 
-        ...prev, 
-        syncStatus: { 
-          ...prev.syncStatus, 
-          isRunning: true, 
-          progress: 0, 
-          currentTask: 'Starting sync...' 
-        },
-        error: null
-      }));
-
-      const submissions = await getRecentSubmissions();
-      
-      for (let i = 0; i < submissions.length; i++) {
-        const submission = submissions[i];
-        setState(prev => ({
-          ...prev,
-          syncStatus: {
-            ...prev.syncStatus,
-            progress: ((i + 1) / submissions.length) * 100,
-            currentTask: `Syncing ${submission.title}...`
-          }
-        }));
-
-        await syncToGitHub(submission, state.settings);
-        
-        // Add to recent activity
-        const newActivity: ActivityItem = {
-          id: Date.now().toString(),
-          title: submission.title,
-          difficulty: submission.difficulty,
-          timestamp: new Date(),
-          status: 'success'
-        };
-
-        setState(prev => ({
-          ...prev,
-          recentActivity: [newActivity, ...prev.recentActivity.slice(0, 9)]
-        }));
-      }
-
+    }));
+    
+    // Simulate sync completion
+    setTimeout(() => {
       setState(prev => ({
         ...prev,
         syncStatus: {
@@ -132,48 +88,24 @@ const Popup: React.FC = () => {
           lastSync: new Date()
         }
       }));
-
-      // Save recent activity
-      await setStorageData('recentActivity', state.recentActivity);
-
-    } catch (error) {
-      setState(prev => ({
-        ...prev,
-        syncStatus: { ...prev.syncStatus, isRunning: false },
-        error: error instanceof Error ? error.message : 'Sync failed'
-      }));
-    }
+    }, 2000);
   };
 
-  const handleSettingChange = async (key: keyof Settings, value: boolean) => {
-    const newSettings = { ...state.settings, [key]: value };
-    setState(prev => ({ ...prev, settings: newSettings }));
-    await setStorageData('settings', newSettings);
+  const handleSettingChange = (key: keyof Settings, value: boolean) => {
+    setState(prev => ({ 
+      ...prev, 
+      settings: { ...prev.settings, [key]: value } 
+    }));
   };
 
-  const openSettings = () => {
-    chrome.runtime.openOptionsPage();
-  };
-
-  const openGitHubAuth = () => {
-    chrome.identity.launchWebAuthFlow({
-      url: `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID || 'your_client_id'}&scope=repo%20user:email`,
-      interactive: true
-    }, (redirectUrl) => {
-      if (redirectUrl) {
-        // Handle OAuth callback
-        const url = new URL(redirectUrl);
-        const code = url.searchParams.get('code');
-        if (code) {
-          // Exchange code for token
-          // This would be handled by the background script
-          chrome.runtime.sendMessage({ 
-            type: 'GITHUB_AUTH', 
-            code 
-          });
-        }
+  const connectGitHub = () => {
+    setState(prev => ({
+      ...prev,
+      connectionStatus: {
+        ...prev.connectionStatus,
+        github: { connected: true, username: 'demo-user' }
       }
-    });
+    }));
   };
 
   if (state.isLoading) {
