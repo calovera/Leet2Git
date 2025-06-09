@@ -1,0 +1,39 @@
+{
+  "manifest_version": 3,
+  "name": "Leet2Git",
+  "version": "1.0.0",
+  "description": "Sync LeetCode solutions to GitHub repositories automatically",
+  "icons": {
+    "16": "public/icons/16.png",
+    "32": "public/icons/32.png",
+    "128": "public/icons/128.png"
+  },
+  "background": {
+    "service_worker": "src/background.ts"
+  },
+  "action": {
+    "default_popup": "src/popup/index.html",
+    "default_title": "Leet2Git - Sync LeetCode to GitHub"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://leetcode.com/*"],
+      "js": ["src/content.ts"],
+      "run_at": "document_end"
+    }
+  ],
+  "permissions": [
+    "identity",
+    "storage",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "https://github.com/*",
+    "https://api.github.com/*",
+    "https://leetcode.com/*"
+  ],
+  "oauth2": {
+    "client_id": "your_github_oauth_client_id",
+    "scopes": ["repo", "user:email"]
+  }
+}
