@@ -131,11 +131,18 @@ function toPascalCase(str: string): string {
 
 async function updateBadge(): Promise<void> {
   try {
-    const result = await chrome.storage.sync.get('pending');
+    const result = await chrome.storage.sync.get(['pending', 'auth']);
     const pending = result.pending || [];
-    const text = pending.length > 0 ? pending.length.toString() : '';
-    chrome.action.setBadgeText({ text });
-    chrome.action.setBadgeBackgroundColor({ color: '#3B82F6' });
+    const auth = result.auth;
+    
+    // Only show badge if user is authenticated
+    if (auth && auth.connected) {
+      const text = pending.length > 0 ? pending.length.toString() : '';
+      chrome.action.setBadgeText({ text });
+      chrome.action.setBadgeBackgroundColor({ color: '#3B82F6' });
+    } else {
+      chrome.action.setBadgeText({ text: '' });
+    }
   } catch (error) {
     console.error('Error updating badge:', error);
   }
@@ -333,50 +340,41 @@ async function updateStats(solution: SolutionPayload): Promise<void> {
   }
 }
 
-chrome.runtime.onMessage.addListener((message: ChromeMessage, sender, sendResponse) => {
-  switch (message.type) {
-    case "graphql_question_data":
-      const meta: QuestionMetadata = {
-        slug: message.data.slug,
-        title: message.data.title,
-        difficulty: message.data.difficulty,
-        tag: message.data.topicTags?.[0]?.name || message.data.categoryTitle || "Algorithms",
-        categoryTitle: message.data.categoryTitle,
-        topicTags: message.data.topicTags
-      };
-      
-      cacheQuestionMeta(meta);
-      
-      if (sender.tab?.id) {
-        const tabInfo = tabData.get(sender.tab.id);
-        if (tabInfo && tabInfo.slug === meta.slug) {
-          tabInfo.metadata = meta;
-          console.log(`[Leet2Git] Updated metadata for tab ${sender.tab.id}: ${meta.title}`);
-        }
+async function handleAuthVerification(token: string, sendResponse: (response: any) => void): Promise<void> {
+  try {
+    const response = await fetch('https://api.github.com/user', {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/vnd.github.v3+json'
       }
-      
-      sendResponse({ success: true });
-      break;
-    case "auth":
-      handleAuth(sendResponse);
-      break;
-    case "push":
-      handlePush(sendResponse);
-      break;
-    case "getHomeData":
-      handleGetHomeData(sendResponse);
-      break;
-    case "solved_dom":
-      handleSolvedFromDOM(message.payload, sendResponse);
-      break;
-    case "updateConfig":
-      handleUpdateConfig(message.payload, sendResponse);
-      break;
-    default:
-      console.warn("Unknown message type:", message.type);
+    });
+
+    if (!response.ok) {
+      sendResponse({ success: false, error: 'Invalid GitHub token' });
+      return;
+    }
+
+    const userData = await response.json();
+    
+    const authData: GitHubAuth = {
+      token: token,
+      username: userData.login,
+      email: userData.email || '',
+      connected: true
+    };
+
+    await chrome.storage.sync.set({ auth: authData });
+    
+    sendResponse({ 
+      success: true, 
+      username: userData.login,
+      auth: authData 
+    });
+  } catch (error) {
+    console.error("Error verifying GitHub token:", error);
+    sendResponse({ success: false, error: 'Failed to verify token' });
   }
-  return true;
-});
+}
 
 async function handleAuth(sendResponse: (response: any) => void): Promise<void> {
   try {
@@ -403,6 +401,55 @@ async function handleAuth(sendResponse: (response: any) => void): Promise<void> 
     sendResponse({ success: false, error: (error as Error).message });
   }
 }
+
+chrome.runtime.onMessage.addListener((message: ChromeMessage, sender, sendResponse) => {
+  switch (message.type) {
+    case "graphql_question_data":
+      const meta: QuestionMetadata = {
+        slug: message.data.slug,
+        title: message.data.title,
+        difficulty: message.data.difficulty,
+        tag: message.data.topicTags?.[0]?.name || message.data.categoryTitle || "Algorithms",
+        categoryTitle: message.data.categoryTitle,
+        topicTags: message.data.topicTags
+      };
+      
+      cacheQuestionMeta(meta);
+      
+      if (sender.tab?.id) {
+        const tabInfo = tabData.get(sender.tab.id);
+        if (tabInfo && tabInfo.slug === meta.slug) {
+          tabInfo.metadata = meta;
+          console.log(`[Leet2Git] Updated metadata for tab ${sender.tab.id}: ${meta.title}`);
+        }
+      }
+      
+      sendResponse({ success: true });
+      break;
+    case "auth":
+      if (message.data && message.data.token) {
+        handleAuthVerification(message.data.token, sendResponse);
+      } else {
+        handleAuth(sendResponse);
+      }
+      break;
+    case "push":
+      handlePush(sendResponse);
+      break;
+    case "getHomeData":
+      handleGetHomeData(sendResponse);
+      break;
+    case "solved_dom":
+      handleSolvedFromDOM(message.payload, sendResponse);
+      break;
+    case "updateConfig":
+      handleUpdateConfig(message.payload, sendResponse);
+      break;
+    default:
+      console.warn("Unknown message type:", message.type);
+  }
+  return true;
+});
 
 async function handlePush(sendResponse: (response: any) => void): Promise<void> {
   try {
