@@ -14,19 +14,19 @@ chrome.runtime.onStartup.addListener(() => {
   updateBadge();
 });
 
-// Primary capture method: Intercept LeetCode API calls
+// Primary capture method: Intercept LeetCode submission check calls
 chrome.webRequest.onCompleted.addListener(async (details) => {
   if (details.statusCode !== 200) return;
   
-  // Extract submission ID from URL
-  const urlMatch = details.url.match(/\/api\/submission-details\/(\d+)\//);
+  // Extract submission ID from check URL
+  const urlMatch = details.url.match(/\/submissions\/detail\/(\d+)\/check\//);
   if (!urlMatch) return;
   
   const submissionId = urlMatch[1];
-  console.info(`[Leet2Git] Intercepted submission API call: ${submissionId}`);
+  console.info(`[Leet2Git] Intercepted submission check: ${submissionId}`);
   
   try {
-    // Fetch submission details with credentials
+    // Fetch the check response
     const response = await fetch(details.url, {
       credentials: 'include',
       headers: {
@@ -35,28 +35,51 @@ chrome.webRequest.onCompleted.addListener(async (details) => {
     });
     
     if (!response.ok) {
-      console.error(`[Leet2Git] Failed to fetch submission details: ${response.status}`);
+      console.error(`[Leet2Git] Failed to fetch check response: ${response.status}`);
       return;
     }
     
     const data = await response.json();
-    console.info(`[Leet2Git] Fetched submission data:`, data);
+    console.info(`[Leet2Git] Check response:`, data);
     
     // Only process accepted submissions
-    if (data.status_display !== "Accepted") {
-      console.info(`[Leet2Git] Submission not accepted: ${data.status_display}`);
+    if (data.status_msg !== "Accepted") {
+      console.info(`[Leet2Git] Submission not accepted: ${data.status_msg}`);
       return;
     }
+    
+    // Extract problem info from current tab URL
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tabs[0] || !tabs[0].url) {
+      console.error(`[Leet2Git] Cannot get current tab URL`);
+      return;
+    }
+    
+    const urlParts = tabs[0].url.match(/\/problems\/([^\/]+)/);
+    if (!urlParts) {
+      console.error(`[Leet2Git] Cannot extract problem slug from URL: ${tabs[0].url}`);
+      return;
+    }
+    
+    const problemSlug = urlParts[1];
+    const problemTitle = problemSlug.split('-').map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1)
+    ).join(' ');
+    
+    // Get the submitted code from submit request (we need to store it temporarily)
+    const storedCode = await getStoredSubmissionCode(submissionId);
     
     // Build solution payload
     const solutionPayload = {
       submissionId: submissionId,
-      slug: toPascalCase(data.question?.title_slug || data.title_slug),
-      title: data.question?.title || data.question_title,
-      tag: (data.tags && data.tags.length > 0) ? data.tags[0] : "Uncategorized",
-      lang: data.lang,
-      difficulty: data.question?.difficulty || "Medium",
-      code: data.code,
+      slug: toPascalCase(problemSlug),
+      title: problemTitle,
+      tag: "Uncategorized", // We don't have tags from this endpoint
+      lang: data.pretty_lang || data.lang,
+      difficulty: "Medium", // Default since we don't have difficulty here
+      code: storedCode || "// Code not captured",
+      runtime: data.display_runtime + " ms",
+      memory: data.status_memory,
       capturedAt: new Date().toISOString(),
       timestamp: Date.now()
     };
@@ -91,8 +114,62 @@ chrome.webRequest.onCompleted.addListener(async (details) => {
     console.error(`[Leet2Git] Error processing submission ${submissionId}:`, error);
   }
 }, {
-  urls: ["https://leetcode.com/api/submission-details/*"]
+  urls: ["https://leetcode.com/submissions/detail/*/check/"]
 });
+
+// Capture submit requests to store code temporarily
+chrome.webRequest.onBeforeRequest.addListener(async (details) => {
+  if (details.method !== "POST") return;
+  
+  try {
+    const requestBody = JSON.parse(new TextDecoder().decode(details.requestBody?.raw?.[0]?.bytes));
+    if (requestBody?.typed_code && requestBody?.question_id) {
+      // Store the code temporarily - we'll match it with the submission ID later
+      await chrome.storage.local.set({
+        [`temp_code_${requestBody.question_id}`]: {
+          code: requestBody.typed_code,
+          lang: requestBody.lang,
+          timestamp: Date.now()
+        }
+      });
+      console.info(`[Leet2Git] Stored code for question ${requestBody.question_id}`);
+    }
+  } catch (error) {
+    console.error(`[Leet2Git] Error storing submit code:`, error);
+  }
+}, {
+  urls: ["https://leetcode.com/problems/*/submit/"]
+}, ["requestBody"]);
+
+// Helper to get stored submission code
+async function getStoredSubmissionCode(submissionId) {
+  try {
+    // We need to match by question - get all temp codes and find the most recent one
+    const allStorage = await chrome.storage.local.get();
+    const tempCodes = Object.entries(allStorage)
+      .filter(([key]) => key.startsWith('temp_code_'))
+      .map(([key, value]) => ({ key, ...value }))
+      .sort((a, b) => b.timestamp - a.timestamp);
+    
+    if (tempCodes.length > 0) {
+      const mostRecent = tempCodes[0];
+      // Clean up old codes (keep only last 5 minutes)
+      const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
+      const keysToRemove = tempCodes
+        .filter(code => code.timestamp < fiveMinutesAgo)
+        .map(code => code.key);
+      
+      if (keysToRemove.length > 0) {
+        await chrome.storage.local.remove(keysToRemove);
+      }
+      
+      return mostRecent.code;
+    }
+  } catch (error) {
+    console.error(`[Leet2Git] Error getting stored code:`, error);
+  }
+  return null;
+}
 
 // Helper function to convert kebab-case to PascalCase
 function toPascalCase(str) {

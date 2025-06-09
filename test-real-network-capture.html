@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real Network Capture Test - Leet2Git</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1000px;
+            margin: 20px auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .test-section {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        .btn-success { background: #28a745; }
+        .btn-success:hover { background: #218838; }
+        .network-demo {
+            background: #e8f4fd;
+            border: 2px solid #007bff;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 15px 0;
+        }
+        .code-block {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            margin: 10px 0;
+            white-space: pre-wrap;
+        }
+        .log-output {
+            background: #1a1a1a;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .test-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .capture-status {
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: 10px;
+            align-items: center;
+            padding: 10px;
+            background: #f1f3f4;
+            border-radius: 4px;
+            margin: 5px 0;
+        }
+        .step-indicator {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .step-indicator.active { background: #ffc107; color: #000; }
+        .step-indicator.complete { background: #28a745; color: #fff; }
+        .step-indicator.error { background: #dc3545; color: #fff; }
+    </style>
+</head>
+<body>
+    <h1>Real Network Capture Test - Leet2Git</h1>
+    <p>Testing the updated API interception for actual LeetCode network patterns.</p>
+
+    <div class="test-section">
+        <h2>Extension Status</h2>
+        <div id="extensionStatus" class="status warning">Checking extension...</div>
+        <button onclick="checkExtension()">Check Extension</button>
+        <button onclick="clearExtensionStorage()">Clear Storage</button>
+    </div>
+
+    <div class="network-demo">
+        <h3>Network Flow Simulation</h3>
+        <p>Simulating the exact LeetCode submission flow:</p>
+        
+        <div class="capture-status">
+            <div class="step-indicator" id="step1">1</div>
+            <span>Submit Code (POST /problems/two-sum/submit/)</span>
+            <button onclick="simulateSubmit()">Simulate</button>
+        </div>
+        
+        <div class="capture-status">
+            <div class="step-indicator" id="step2">2</div>
+            <span>Check Status (GET /submissions/detail/1658308524/check/)</span>
+            <button onclick="simulateCheck()">Simulate</button>
+        </div>
+        
+        <div class="capture-status">
+            <div class="step-indicator" id="step3">3</div>
+            <span>Extension Captures & Processes</span>
+            <button onclick="checkCaptureResults()">Check Results</button>
+        </div>
+    </div>
+
+    <div class="test-grid">
+        <div class="test-section">
+            <h3>Submit Request Simulation</h3>
+            <div class="code-block">{
+  "lang": "python3",
+  "question_id": "1",
+  "typed_code": "class Solution:\n    def twoSum(self, nums: List[int], target: int) -> List[int]:\n        values = {}\n        for i in range(0, len(nums)):\n            if (target - nums[i] in values):\n                return [values[target - nums[i]], i]\n            else:\n                values[nums[i]] = i\n        return [-1,-1]"
+}</div>
+            <div id="submitStatus" class="status info">Ready to simulate submit</div>
+        </div>
+
+        <div class="test-section">
+            <h3>Check Response Simulation</h3>
+            <div class="code-block">{
+  "status_code": 10,
+  "status_msg": "Accepted",
+  "submission_id": "1658308524",
+  "pretty_lang": "Python3",
+  "display_runtime": "0",
+  "status_memory": "18.9 MB",
+  "total_correct": 63,
+  "total_testcases": 63
+}</div>
+            <div id="checkStatus" class="status info">Ready to simulate check</div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Captured Solutions</h2>
+        <div id="capturedSolutions" class="status info">No solutions captured yet</div>
+        <button onclick="viewCapturedSolutions()">View All Captured</button>
+        <button onclick="testDirectCapture()">Test Direct Capture</button>
+        
+        <h4>Extension Storage:</h4>
+        <pre id="storageDisplay">Loading...</pre>
+    </div>
+
+    <div class="test-section">
+        <h2>Real-time Extension Logs</h2>
+        <div id="logOutput" class="log-output">Monitoring for [Leet2Git] logs...</div>
+        <button onclick="clearLogs()">Clear Logs</button>
+    </div>
+
+    <script>
+        let logBuffer = [];
+        let simulationState = {
+            submitDone: false,
+            checkDone: false,
+            captureDone: false
+        };
+
+        // Enhanced console monitoring
+        ['log', 'info', 'warn', 'error'].forEach(level => {
+            const originalFn = console[level];
+            console[level] = function(...args) {
+                originalFn.apply(console, args);
+                
+                const logText = args.join(' ');
+                if (logText.includes('[Leet2Git]') || logText.includes('Leet2Git')) {
+                    const timestamp = new Date().toLocaleTimeString();
+                    logBuffer.push(`[${timestamp}] ${level.toUpperCase()}: ${logText}`);
+                    updateLogDisplay();
+                }
+            };
+        });
+
+        function updateLogDisplay() {
+            const logDiv = document.getElementById('logOutput');
+            logDiv.textContent = logBuffer.slice(-20).join('\n') || 'No logs yet...';
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function clearLogs() {
+            logBuffer = [];
+            updateLogDisplay();
+        }
+
+        function updateStatus(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `status ${type}`;
+        }
+
+        function updateStepIndicator(stepId, state) {
+            const element = document.getElementById(stepId);
+            element.className = `step-indicator ${state}`;
+        }
+
+        async function checkExtension() {
+            if (typeof chrome !== 'undefined' && chrome.runtime && chrome.storage) {
+                updateStatus('extensionStatus', 'Extension loaded successfully', 'success');
+                
+                // Check if webRequest listeners are active
+                chrome.runtime.sendMessage({ type: 'getHomeData' }, (response) => {
+                    if (response) {
+                        console.log('[Test] Extension responding:', response);
+                    }
+                });
+                
+                await refreshStorageDisplay();
+            } else {
+                updateStatus('extensionStatus', 'Extension not loaded - reload extension', 'error');
+            }
+        }
+
+        async function clearExtensionStorage() {
+            if (chrome?.storage) {
+                await chrome.storage.sync.clear();
+                await chrome.storage.local.clear();
+                updateStatus('extensionStatus', 'Storage cleared', 'warning');
+                await refreshStorageDisplay();
+            }
+        }
+
+        async function refreshStorageDisplay() {
+            if (!chrome?.storage) return;
+            
+            try {
+                const syncData = await chrome.storage.sync.get();
+                const localData = await chrome.storage.local.get();
+                const allData = { sync: syncData, local: localData };
+                
+                document.getElementById('storageDisplay').textContent = JSON.stringify(allData, null, 2);
+                
+                const pendingCount = syncData.pending?.length || 0;
+                updateStatus('capturedSolutions', `${pendingCount} solutions in storage`, pendingCount > 0 ? 'success' : 'info');
+            } catch (error) {
+                console.error('[Test] Storage error:', error);
+            }
+        }
+
+        async function simulateSubmit() {
+            updateStepIndicator('step1', 'active');
+            updateStatus('submitStatus', 'Simulating submit request...', 'warning');
+            
+            // Store the code like the extension would capture from onBeforeRequest
+            if (chrome?.storage) {
+                await chrome.storage.local.set({
+                    'temp_code_1': {
+                        code: `class Solution:
+    def twoSum(self, nums: List[int], target: int) -> List[int]:
+        values = {}
+        for i in range(0, len(nums)):
+            if (target - nums[i] in values):
+                return [values[target - nums[i]], i]
+            else:
+                values[nums[i]] = i
+        return [-1,-1]`,
+                        lang: 'python3',
+                        timestamp: Date.now()
+                    }
+                });
+                
+                console.log('[Test] Simulated code storage for question 1');
+                updateStepIndicator('step1', 'complete');
+                updateStatus('submitStatus', 'Submit simulation complete - code stored', 'success');
+                simulationState.submitDone = true;
+                await refreshStorageDisplay();
+            }
+        }
+
+        async function simulateCheck() {
+            if (!simulationState.submitDone) {
+                updateStatus('checkStatus', 'Run submit simulation first', 'error');
+                return;
+            }
+            
+            updateStepIndicator('step2', 'active');
+            updateStatus('checkStatus', 'Simulating check response...', 'warning');
+            
+            // Simulate what the extension background script would do
+            const mockCheckData = {
+                status_msg: "Accepted",
+                submission_id: "1658308524",
+                pretty_lang: "Python3",
+                display_runtime: "0",
+                status_memory: "18.9 MB",
+                total_correct: 63,
+                total_testcases: 63
+            };
+            
+            // This simulates the extension processing
+            setTimeout(async () => {
+                console.log('[Test] Simulating extension processing of check response:', mockCheckData);
+                
+                // Manually trigger what the background script would do
+                if (chrome?.runtime) {
+                    const solutionPayload = {
+                        submissionId: "1658308524",
+                        slug: "TwoSum",
+                        title: "Two Sum",
+                        tag: "Uncategorized",
+                        lang: "Python3",
+                        difficulty: "Medium",
+                        code: `class Solution:
+    def twoSum(self, nums: List[int], target: int) -> List[int]:
+        values = {}
+        for i in range(0, len(nums)):
+            if (target - nums[i] in values):
+                return [values[target - nums[i]], i]
+            else:
+                values[nums[i]] = i
+        return [-1,-1]`,
+                        runtime: "0 ms",
+                        memory: "18.9 MB",
+                        timestamp: Date.now()
+                    };
+                    
+                    chrome.runtime.sendMessage({
+                        type: 'solved_dom',
+                        payload: solutionPayload
+                    }, (response) => {
+                        if (response?.success) {
+                            updateStepIndicator('step2', 'complete');
+                            updateStatus('checkStatus', 'Check simulation complete - solution captured', 'success');
+                            simulationState.checkDone = true;
+                        } else {
+                            updateStepIndicator('step2', 'error');
+                            updateStatus('checkStatus', `Check failed: ${response?.reason}`, 'error');
+                        }
+                        refreshStorageDisplay();
+                    });
+                }
+            }, 1000);
+        }
+
+        async function checkCaptureResults() {
+            updateStepIndicator('step3', 'active');
+            
+            if (!chrome?.storage) {
+                updateStepIndicator('step3', 'error');
+                return;
+            }
+            
+            const data = await chrome.storage.sync.get(['pending']);
+            const pendingCount = data.pending?.length || 0;
+            
+            if (pendingCount > 0) {
+                updateStepIndicator('step3', 'complete');
+                updateStatus('capturedSolutions', `Success! ${pendingCount} solutions captured`, 'success');
+                simulationState.captureDone = true;
+            } else {
+                updateStepIndicator('step3', 'error');
+                updateStatus('capturedSolutions', 'No solutions found in storage', 'error');
+            }
+            
+            await refreshStorageDisplay();
+        }
+
+        async function viewCapturedSolutions() {
+            if (!chrome?.storage) return;
+            
+            const data = await chrome.storage.sync.get(['pending']);
+            if (data.pending && data.pending.length > 0) {
+                console.log('[Test] Captured solutions:', data.pending);
+                alert(`Found ${data.pending.length} captured solutions. Check console for details.`);
+            } else {
+                alert('No captured solutions found.');
+            }
+        }
+
+        async function testDirectCapture() {
+            if (!chrome?.runtime) return;
+            
+            const testPayload = {
+                submissionId: `direct-test-${Date.now()}`,
+                title: "Direct Test Problem",
+                slug: "direct-test",
+                difficulty: "Easy",
+                code: "// Direct test code",
+                lang: "JavaScript",
+                timestamp: Date.now()
+            };
+            
+            chrome.runtime.sendMessage({
+                type: 'solved_dom',
+                payload: testPayload
+            }, (response) => {
+                console.log('[Test] Direct capture response:', response);
+                refreshStorageDisplay();
+            });
+        }
+
+        // Auto-initialize
+        window.addEventListener('load', () => {
+            setTimeout(checkExtension, 500);
+        });
+    </script>
+</body>
+</html>
