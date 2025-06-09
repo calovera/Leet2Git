@@ -9,9 +9,9 @@ const manifest = {
   version: "1.0.0",
   description: "Automatically sync your LeetCode solutions to GitHub",
   icons: {
-    "16": "icons/icon16.png",
-    "32": "icons/icon32.png",
-    "128": "icons/icon128.png"
+    "16": "icon16.png",
+    "32": "icon32.png",
+    "128": "icon128.png"
   },
   background: {
     service_worker: "src/background.ts",
