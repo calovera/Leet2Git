@@ -161,10 +161,17 @@
         .text-orange-800 { color: rgb(154 52 18); }
         .text-indigo-600 { color: rgb(79 70 229); }
         
-        /* Gradients */
+        /* Gradients - Fixed for proper rendering */
         .bg-gradient-to-br { background-image: linear-gradient(to bottom right, var(--tw-gradient-stops)); }
-        .from-indigo-600 { --tw-gradient-from: #4f46e5 var(--tw-gradient-from-position); --tw-gradient-to: rgb(79 70 229 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
-        .to-purple-600 { --tw-gradient-to: #9333ea var(--tw-gradient-to-position); }
+        .from-indigo-600 { 
+            --tw-gradient-from: #4f46e5; 
+            --tw-gradient-to: rgba(79, 70, 229, 0); 
+            --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); 
+        }
+        .to-purple-600 { --tw-gradient-to: #9333ea; }
+        .bg-gradient-to-br.from-indigo-600.to-purple-600 {
+            background: linear-gradient(to bottom right, #4f46e5, #9333ea);
+        }
         
         /* Borders */
         .border { border-width: 1px; }
@@ -187,12 +194,17 @@
         .rounded-2xl { border-radius: 1rem; }
         .rounded-full { border-radius: 9999px; }
         
-        /* Shadows & Effects */
-        .shadow-sm { box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); }
-        .shadow-lg { box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); }
-        .shadow-xl { box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 10px 10px -5px rgb(0 0 0 / 0.04); }
-        .ring-1 { box-shadow: 0 0 0 1px rgb(0 0 0 / 0.05); }
-        .ring-slate-200 { --tw-ring-color: rgb(226 232 240); }
+        /* Shadows & Effects - Fixed for proper rendering */
+        .shadow-sm { box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); }
+        .shadow-lg { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1); }
+        .shadow-xl { box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); }
+        .ring-1 { box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05); }
+        .ring-slate-200 { box-shadow: 0 0 0 1px rgb(226, 232, 240); }
+        
+        /* Combined ring and shadow effects */
+        .shadow-sm.ring-1.ring-slate-200 {
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05), 0 0 0 1px rgb(226, 232, 240);
+        }
         
         /* Overflow */
         .overflow-auto { overflow: auto; }

@@ -156,13 +156,26 @@
             to { transform: rotate(360deg); }
         }
         
-        /* Glass effect for beautiful design */
+        /* Glass effect for beautiful design - Enhanced */
         .glass {
             background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
-                    backdrop-filter: blur(20px);
             border: 1px solid rgba(255, 255, 255, 0.3);
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Combined shadow and glass effects */
+        .bg-white.shadow-xl {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        
+        /* Enhanced button styling */
+        .bg-indigo-600.hover\:bg-indigo-700:hover {
+            background: linear-gradient(135deg, #4f46e5, #4338ca);
         }
     </style>
   <script type="module" crossorigin src="../../assets/index.html.BZ8cqx3S.js"></script>
