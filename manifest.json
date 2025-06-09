@@ -9,7 +9,7 @@
     "128": "icons/128.png"
   },
   "background": {
-    "service_worker": "background.js",
+    "service_worker": "service-worker-loader.js",
     "type": "module"
   },
   "action": {
@@ -20,7 +20,7 @@
   "content_scripts": [
     {
       "matches": ["https://leetcode.com/*"],
-      "js": ["src/content.ts", "src/content/leetcode-hook.ts"],
+      "js": ["assets/content.ts-loader.1LRY1VgV.js"],
       "run_at": "document_end"
     }
   ],

@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Leet2Git TopicTags Verification Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #1a1a1a; color: white; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .test-section { background: #2d2d2d; padding: 20px; margin: 20px 0; border-radius: 8px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .success { background: #10b981; }
+        .error { background: #ef4444; }
+        .warning { background: #f59e0b; }
+        .info { background: #3b82f6; }
+        button { background: #8b5cf6; color: white; border: none; padding: 10px 20px; margin: 5px; border-radius: 4px; cursor: pointer; }
+        button:disabled { background: #4b5563; cursor: not-allowed; }
+        .code { background: #1f2937; padding: 10px; border-radius: 4px; font-family: monospace; white-space: pre-wrap; overflow-x: auto; }
+        .result { margin: 10px 0; padding: 10px; background: #374151; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Leet2Git TopicTags Fix Verification</h1>
+        
+        <div class="test-section">
+            <h2>1. Extension Detection</h2>
+            <div id="extensionStatus" class="status info">⏳ Checking extension installation...</div>
+            <button onclick="testExtension()" id="testExtensionBtn">Test Extension</button>
+        </div>
+
+        <div class="test-section">
+            <h2>2. Mock GraphQL Data Test</h2>
+            <div id="graphqlStatus" class="status info">⏳ Ready to test GraphQL data processing...</div>
+            <button onclick="testGraphQLData()" id="testGraphQLBtn" disabled>Send Mock GraphQL Data</button>
+            <div id="graphqlResult" class="result" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>3. Direct Background Script Test</h2>
+            <div id="backgroundStatus" class="status info">⏳ Ready to test background script...</div>
+            <button onclick="testBackgroundScript()" id="testBackgroundBtn" disabled>Test Background Logic</button>
+            <div id="backgroundResult" class="result" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>4. Storage Inspection</h2>
+            <div id="storageStatus" class="status info">⏳ Ready to inspect storage...</div>
+            <button onclick="inspectStorage()" id="inspectStorageBtn" disabled>Inspect Current Storage</button>
+            <div id="storageResult" class="result" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>5. Test Results Summary</h2>
+            <div id="summaryStatus" class="status info">⏳ Run tests to see summary...</div>
+        </div>
+    </div>
+
+    <script>
+        let testResults = [];
+
+        function updateStatus(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `status ${type}`;
+        }
+
+        function showResult(elementId, content) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = content;
+            element.style.display = 'block';
+        }
+
+        function testExtension() {
+            console.log('[Test] Starting extension detection...');
+            
+            if (typeof chrome !== 'undefined' && chrome.runtime) {
+                updateStatus('extensionStatus', '✅ Extension detected - Chrome APIs available', 'success');
+                testResults.push({ test: 'Extension Detection', status: 'PASS' });
+                
+                // Enable other test buttons
+                document.getElementById('testGraphQLBtn').disabled = false;
+                document.getElementById('testBackgroundBtn').disabled = false;
+                document.getElementById('inspectStorageBtn').disabled = false;
+                
+                console.log('[Test] Extension ID:', chrome.runtime.id);
+            } else {
+                updateStatus('extensionStatus', '❌ Extension not installed or Chrome APIs not available', 'error');
+                testResults.push({ test: 'Extension Detection', status: 'FAIL' });
+            }
+        }
+
+        function testGraphQLData() {
+            console.log('[Test] Testing GraphQL data processing...');
+            updateStatus('graphqlStatus', '🔄 Sending mock GraphQL data...', 'warning');
+            
+            // Mock the exact Two Sum GraphQL response structure
+            const mockGraphQLData = {
+                slug: "two-sum",
+                title: "Two Sum",
+                difficulty: "Easy",
+                categoryTitle: "Algorithms",
+                topicTags: [
+                    {
+                        "name": "Array",
+                        "slug": "array",
+                        "translatedName": null
+                    },
+                    {
+                        "name": "Hash Table",
+                        "slug": "hash-table",
+                        "translatedName": null
+                    }
+                ]
+            };
+
+            chrome.runtime.sendMessage({
+                type: 'graphql_question_data',
+                data: mockGraphQLData
+            }, (response) => {
+                if (chrome.runtime.lastError) {
+                    updateStatus('graphqlStatus', '❌ Failed to send GraphQL data: ' + chrome.runtime.lastError.message, 'error');
+                    testResults.push({ test: 'GraphQL Data Processing', status: 'FAIL' });
+                } else if (response && response.success) {
+                    updateStatus('graphqlStatus', '✅ GraphQL data processed successfully', 'success');
+                    testResults.push({ test: 'GraphQL Data Processing', status: 'PASS' });
+                    
+                    showResult('graphqlResult', `
+                        <div class="code">Sent GraphQL Data:
+{
+  "slug": "two-sum",
+  "title": "Two Sum", 
+  "difficulty": "Easy",
+  "categoryTitle": "Algorithms",
+  "topicTags": [
+    { "name": "Array", "slug": "array" },
+    { "name": "Hash Table", "slug": "hash-table" }
+  ]
+}
+
+Expected folder: Array/ (from topicTags[0].name)
+NOT: Algorithms/ (from categoryTitle)</div>
+                    `);
+                } else {
+                    updateStatus('graphqlStatus', '❌ GraphQL data processing failed', 'error');
+                    testResults.push({ test: 'GraphQL Data Processing', status: 'FAIL' });
+                }
+            });
+        }
+
+        function testBackgroundScript() {
+            console.log('[Test] Testing background script responses...');
+            updateStatus('backgroundStatus', '🔄 Testing background script...', 'warning');
+            
+            chrome.runtime.sendMessage({ type: 'getHomeData' }, (response) => {
+                if (chrome.runtime.lastError) {
+                    updateStatus('backgroundStatus', '❌ Background script error: ' + chrome.runtime.lastError.message, 'error');
+                    testResults.push({ test: 'Background Script', status: 'FAIL' });
+                } else if (response && response.success) {
+                    updateStatus('backgroundStatus', '✅ Background script responding correctly', 'success');
+                    testResults.push({ test: 'Background Script', status: 'PASS' });
+                    
+                    showResult('backgroundResult', `
+                        <div class="code">Background Script Response:
+${JSON.stringify(response, null, 2)}</div>
+                    `);
+                } else {
+                    updateStatus('backgroundStatus', '❌ Background script not responding properly', 'error');
+                    testResults.push({ test: 'Background Script', status: 'FAIL' });
+                }
+            });
+        }
+
+        function inspectStorage() {
+            console.log('[Test] Inspecting current storage...');
+            updateStatus('storageStatus', '🔄 Reading storage data...', 'warning');
+            
+            chrome.storage.sync.get(null, (result) => {
+                if (chrome.runtime.lastError) {
+                    updateStatus('storageStatus', '❌ Storage read error: ' + chrome.runtime.lastError.message, 'error');
+                    testResults.push({ test: 'Storage Inspection', status: 'FAIL' });
+                } else {
+                    updateStatus('storageStatus', '✅ Storage data retrieved successfully', 'success');
+                    testResults.push({ test: 'Storage Inspection', status: 'PASS' });
+                    
+                    // Check if there are any pending solutions to examine their tags
+                    const pending = result.pending || [];
+                    let pendingAnalysis = '';
+                    
+                    if (pending.length > 0) {
+                        pendingAnalysis = '<h4>Pending Solutions Analysis:</h4>';
+                        pending.forEach((item, index) => {
+                            pendingAnalysis += `
+                                <div style="margin: 10px 0; padding: 10px; background: #1f2937; border-radius: 4px;">
+                                    <strong>${item.title || 'Unknown'}</strong><br>
+                                    Tag: <span style="color: ${item.tag === 'Array' ? '#10b981' : '#ef4444'}">${item.tag || 'Not set'}</span><br>
+                                    Expected: Array (from topicTags)<br>
+                                    Status: ${item.tag === 'Array' ? '✅ CORRECT' : '❌ WRONG - Should be Array, not ' + (item.tag || 'undefined')}
+                                </div>
+                            `;
+                        });
+                    } else {
+                        pendingAnalysis = '<p>No pending solutions found. Solve a LeetCode problem to test.</p>';
+                    }
+                    
+                    showResult('storageResult', `
+                        <div class="code">Complete Storage Data:
+${JSON.stringify(result, null, 2)}</div>
+                        ${pendingAnalysis}
+                    `);
+                }
+                
+                updateSummary();
+            });
+        }
+
+        function updateSummary() {
+            const passCount = testResults.filter(r => r.status === 'PASS').length;
+            const failCount = testResults.filter(r => r.status === 'FAIL').length;
+            const totalTests = testResults.length;
+            
+            let summaryMessage = `Tests Complete: ${passCount}/${totalTests} passed`;
+            let summaryType = 'info';
+            
+            if (failCount === 0 && totalTests > 0) {
+                summaryMessage = `✅ All ${totalTests} tests passed! Extension should work correctly.`;
+                summaryType = 'success';
+            } else if (failCount > 0) {
+                summaryMessage = `❌ ${failCount} test(s) failed. Extension needs fixes.`;
+                summaryType = 'error';
+            }
+            
+            updateStatus('summaryStatus', summaryMessage, summaryType);
+        }
+
+        // Auto-start extension detection
+        window.addEventListener('load', () => {
+            setTimeout(testExtension, 500);
+        });
+    </script>
+</body>
+</html>
