@@ -235,7 +235,7 @@ async function handleAuthVerification(token, sendResponse) {
   try {
     const response = await fetch('https://api.github.com/user', {
       headers: {
-        'Authorization': `Bearer ${token}`,
+        'Authorization': `token ${token}`,
         'Accept': 'application/vnd.github.v3+json'
       }
     });
@@ -384,7 +384,7 @@ async function ensureRepositoryExists(token, config) {
   try {
     const response = await fetch(repoUrl, {
       headers: {
-        'Authorization': `Bearer ${token}`,
+        'Authorization': `token ${token}`,
         'Accept': 'application/vnd.github.v3+json'
       }
     });
@@ -399,7 +399,7 @@ async function ensureRepositoryExists(token, config) {
       const createResponse = await fetch('https://api.github.com/user/repos', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `token ${token}`,
           'Accept': 'application/vnd.github.v3+json',
           'Content-Type': 'application/json'
         },
@@ -517,7 +517,7 @@ async function upsertFile({ token, owner, repo, branch, path, content, message }
   try {
     const getResponse = await fetch(url, {
       headers: {
-        'Authorization': `Bearer ${token}`,
+        'Authorization': `token ${token}`,
         'Accept': 'application/vnd.github.v3+json'
       }
     });
@@ -543,7 +543,7 @@ async function upsertFile({ token, owner, repo, branch, path, content, message }
   const response = await fetch(url, {
     method: 'PUT',
     headers: {
-      'Authorization': `Bearer ${token}`,
+      'Authorization': `token ${token}`,
       'Accept': 'application/vnd.github.v3+json',
       'Content-Type': 'application/json'
     },
