@@ -1,1 +1,1 @@
-import './assets/background.ts-CdllbktW.js';
+import './background.js';

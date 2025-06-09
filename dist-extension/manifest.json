@@ -20,8 +20,8 @@
   "content_scripts": [
     {
       "js": [
-        "assets/content.ts-loader-DrArN83n.js",
-        "assets/leetcode-hook.ts-loader-Bpot1wC3.js"
+        "assets/content.ts-loader.js",
+        "assets/leetcode-hook.ts-loader.js"
       ],
       "matches": [
         "https://leetcode.com/*"
@@ -48,8 +48,8 @@
         "https://leetcode.com/*"
       ],
       "resources": [
-        "assets/content.ts-CzJHTaC0.js",
-        "assets/leetcode-hook.ts-DBoEGHur.js"
+        "assets/content.js",
+        "assets/leetcodeHook.js"
       ],
       "use_dynamic_url": true
     }
