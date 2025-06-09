@@ -223,7 +223,7 @@ const PushSection = ({ pending, auth }: { pending: PendingItem[], auth: GitHubAu
     
     try {
       const response = await new Promise<any>((resolve) => {
-        chrome.runtime.sendMessage({ type: 'PUSH_SOLUTIONS' }, resolve);
+        chrome.runtime.sendMessage({ type: 'push' }, resolve);
       });
       
       if (response.success) {
@@ -378,7 +378,7 @@ const SettingsSection = ({ auth, config }: { auth: GitHubAuth | null, config: Re
     try {
       const response = await new Promise<any>((resolve) => {
         chrome.runtime.sendMessage({ 
-          type: 'AUTH_GITHUB', 
+          type: 'auth', 
           data: { token: token.trim() }
         }, resolve);
       });
@@ -418,8 +418,8 @@ const SettingsSection = ({ auth, config }: { auth: GitHubAuth | null, config: Re
     try {
       const response = await new Promise<any>((resolve) => {
         chrome.runtime.sendMessage({ 
-          type: 'UPDATE_CONFIG', 
-          data: newConfig 
+          type: 'updateConfig', 
+          payload: newConfig 
         }, resolve);
       });
 
@@ -696,9 +696,11 @@ const Popup: React.FC = () => {
   useEffect(() => {
     const fetchData = () => {
       try {
-        chrome.runtime.sendMessage({ type: 'GET_HOME_DATA' }, (response) => {
+        chrome.runtime.sendMessage({ type: 'getHomeData' }, (response) => {
           if (response && response.success && response.data) {
             setHomeData(response.data);
+          } else {
+            console.error('Failed to fetch home data:', response);
           }
         });
       } catch (error) {
