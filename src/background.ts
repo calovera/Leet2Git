@@ -209,12 +209,14 @@ async function processAcceptedSubmission(submissionId, tabId, data = null) {
     
     // Fix: Properly prioritize topicTags over categoryTitle
     let tag = "Algorithms"; // Default fallback
-    if (metadata?.topicTags && Array.isArray(metadata.topicTags) && metadata.topicTags.length > 0) {
+    if (metadata?.topicTags && Array.isArray(metadata.topicTags) && metadata.topicTags.length > 0 && metadata.topicTags[0]?.name) {
       tag = metadata.topicTags[0].name;
       console.log(`[Leet2Git] Using topicTag: ${tag}`);
     } else if (metadata?.categoryTitle) {
       tag = metadata.categoryTitle;
       console.log(`[Leet2Git] Using categoryTitle as fallback: ${tag}`);
+    } else {
+      console.log(`[Leet2Git] Using default tag: ${tag}`);
     }
     
     const solutionPayload = {
@@ -249,12 +251,13 @@ async function processAcceptedSubmission(submissionId, tabId, data = null) {
     pending.push(solutionPayload);
     recentSubmissions.set(recentKey, now);
     
+    // Only update stats/streak for first time solving this problem (regardless of language)
     if (!solvedSlugs.has(tabInfo.slug)) {
       solvedSlugs.add(tabInfo.slug);
       await updateStats(solutionPayload);
       console.log(`[Leet2Git] Updated stats for new problem: ${tabInfo.slug}`);
     } else {
-      console.log(`[Leet2Git] Problem already solved, stats unchanged: ${tabInfo.slug}`);
+      console.log(`[Leet2Git] Problem already solved in different language, allowing upload but not updating stats: ${tabInfo.slug}`);
     }
     
     await chrome.storage.sync.set({ 
@@ -640,9 +643,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         slug: message.data.slug,
         title: message.data.title,
         difficulty: message.data.difficulty,
-        tag: (message.data.topicTags && Array.isArray(message.data.topicTags) && message.data.topicTags.length > 0) 
-          ? message.data.topicTags[0].name 
-          : (message.data.categoryTitle || "Algorithms"),
         categoryTitle: message.data.categoryTitle,
         topicTags: message.data.topicTags
       };
