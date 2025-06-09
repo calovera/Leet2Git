@@ -108,7 +108,11 @@
   function attachSolutionEventListeners() {
     // Add click listeners for solution headers
     document.querySelectorAll('.solution-header').forEach((header, index) => {
-      header.addEventListener('click', () => toggleCodePreview(index));
+      header.addEventListener('click', (e) => {
+        if (!e.target.classList.contains('delete-btn')) {
+          toggleCodePreview(index);
+        }
+      });
     });
 
     // Add click listeners for copy buttons
@@ -116,6 +120,14 @@
       button.addEventListener('click', (e) => {
         e.stopPropagation(); // Prevent triggering the header click
         copyCode(index);
+      });
+    });
+
+    // Add click listeners for delete buttons
+    document.querySelectorAll('.delete-btn').forEach((button, index) => {
+      button.addEventListener('click', (e) => {
+        e.stopPropagation(); // Prevent triggering the header click
+        deleteSolution(index);
       });
     });
   }
@@ -221,12 +233,17 @@
             pending.map((item, index) => `
               <div class="solution-item" data-index="${index}">
                 <div class="solution-header" style="cursor: pointer;" data-index="${index}">
-                  <div class="solution-title">${item.title}</div>
-                  <div class="solution-meta">
-                    <span class="meta-tag language-tag">${item.lang || item.language}</span>
-                    <span class="meta-tag difficulty-tag ${(item.difficulty || 'medium').toLowerCase()}">${item.difficulty || 'Medium'}</span>
-                    ${item.tag ? `<span class="meta-tag tag-badge">${item.tag}</span>` : ''}
-                    <span class="expand-icon" id="expandIcon${index}">▼</span>
+                  <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                    <div style="flex: 1;">
+                      <div class="solution-title">${item.title}</div>
+                      <div class="solution-meta">
+                        <span class="meta-tag language-tag">${item.lang || item.language}</span>
+                        <span class="meta-tag difficulty-tag ${(item.difficulty || 'medium').toLowerCase()}">${item.difficulty || 'Medium'}</span>
+                        ${item.tag && item.tag !== 'Uncategorized' ? `<span class="meta-tag tag-badge">${item.tag}</span>` : ''}
+                        <span class="expand-icon" id="expandIcon${index}">▼</span>
+                      </div>
+                    </div>
+                    <button class="delete-btn" data-index="${index}" style="background: #ef4444; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 12px; margin-left: 8px;">Delete</button>
                   </div>
                 </div>
                 <div class="solution-info" style="font-size: 12px; color: #64748b; margin-top: 4px;">
@@ -339,6 +356,26 @@
     
     const diffInDays = Math.floor(diffInHours / 24);
     return `${diffInDays}d ago`;
+  }
+
+  function deleteSolution(index) {
+    if (!homeData?.pending) return;
+    
+    const pending = [...homeData.pending];
+    const solution = pending[index];
+    
+    if (confirm(`Delete "${solution.title}"?`)) {
+      pending.splice(index, 1);
+      
+      // Update storage
+      if (chrome && chrome.storage) {
+        chrome.storage.sync.set({ pending }, () => {
+          homeData.pending = pending;
+          updatePushTabBadge();
+          renderTabContent();
+        });
+      }
+    }
   }
 
   function escapeHtml(text) {

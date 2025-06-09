@@ -67,16 +67,12 @@
         const repoBranch = document.getElementById('repoBranch');
         const folderStructure = document.getElementById('folderStructure');
         const privateRepo = document.getElementById('privateRepo');
-        const includeDescription = document.getElementById('includeDescription');
-        const includeTestCases = document.getElementById('includeTestCases');
         
         if (repoOwner) repoOwner.value = config.owner || '';
         if (repoName) repoName.value = config.repo || '';
         if (repoBranch) repoBranch.value = config.branch || 'main';
         if (folderStructure) folderStructure.value = config.folderStructure || 'difficulty';
         if (privateRepo) privateRepo.checked = config.private || false;
-        if (includeDescription) includeDescription.checked = config.includeDescription !== false;
-        if (includeTestCases) includeTestCases.checked = config.includeTestCases !== false;
       });
     }
   }
@@ -149,17 +145,13 @@
     const repoBranch = document.getElementById('repoBranch');
     const folderStructure = document.getElementById('folderStructure');
     const privateRepo = document.getElementById('privateRepo');
-    const includeDescription = document.getElementById('includeDescription');
-    const includeTestCases = document.getElementById('includeTestCases');
 
     const newConfig = {
       owner: repoOwner ? repoOwner.value.trim() : '',
       repo: repoName ? repoName.value.trim() : '',
       branch: repoBranch ? repoBranch.value.trim() || 'main' : 'main',
       folderStructure: folderStructure ? folderStructure.value : 'difficulty',
-      private: privateRepo ? privateRepo.checked : false,
-      includeDescription: includeDescription ? includeDescription.checked : true,
-      includeTestCases: includeTestCases ? includeTestCases.checked : true
+      private: privateRepo ? privateRepo.checked : false
     };
 
     if (!newConfig.owner || !newConfig.repo) {

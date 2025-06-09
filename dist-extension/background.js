@@ -558,6 +558,57 @@ async function handleUpdateConfig(config, sendResponse) {
 }
 
 // GitHub integration functions
+async function ensureRepositoryExists(token, config) {
+  // Check if repository exists
+  const repoUrl = `https://api.github.com/repos/${config.owner}/${config.repo}`;
+  
+  try {
+    const response = await fetch(repoUrl, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/vnd.github.v3+json'
+      }
+    });
+    
+    if (response.ok) {
+      console.log(`Repository ${config.owner}/${config.repo} exists`);
+      return; // Repository exists
+    }
+    
+    if (response.status === 404) {
+      // Repository doesn't exist, create it
+      console.log(`Creating repository ${config.owner}/${config.repo}`);
+      
+      const createResponse = await fetch('https://api.github.com/user/repos', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: config.repo,
+          description: 'LeetCode solutions managed by Leet2Git extension',
+          private: config.private || false,
+          auto_init: true
+        })
+      });
+      
+      if (!createResponse.ok) {
+        const errorData = await createResponse.json();
+        throw new Error(`Failed to create repository: ${errorData.message}`);
+      }
+      
+      console.log(`Repository ${config.owner}/${config.repo} created successfully`);
+    } else {
+      throw new Error(`Failed to check repository: ${response.statusText}`);
+    }
+  } catch (error) {
+    console.error('Repository check/creation error:', error);
+    throw error;
+  }
+}
+
 async function pushSolutionToGitHub(solution, auth, config) {
   const fileName = generateFileName(solution);
   const filePath = generateFilePath(solution, config);
@@ -566,6 +617,9 @@ async function pushSolutionToGitHub(solution, auth, config) {
   console.log(`Pushing to GitHub: ${filePath}/${fileName}`);
   
   try {
+    // First check if repository exists, create if it doesn't
+    await ensureRepositoryExists(auth.token, config);
+    
     const result = await upsertFile({
       token: auth.token,
       owner: config.owner,
