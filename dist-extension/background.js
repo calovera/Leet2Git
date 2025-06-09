@@ -1,8 +1,9 @@
-// Leet2Git Background Script - API-based Capture
+// Leet2Git Background Script - Tab-aware Capture
 console.log("Leet2Git background script loaded");
 
-let lastNetworkCapture = 0;
-let lastDOMCapture = 0;
+// Tab-specific tracking
+const tabData = new Map(); // tabId -> { slug: string, metadata: object, submissionCode: string }
+const submissionToTab = new Map(); // submissionId -> tabId
 
 // Question metadata cache
 const questionCache = new Map();
@@ -32,6 +33,34 @@ function getQuestionMeta(slug) {
   return questionCache.get(slug) || null;
 }
 
+function toPascalCase(str) {
+  return str.split('-').map(word => 
+    word.charAt(0).toUpperCase() + word.slice(1)
+  ).join('');
+}
+
+// Track tab navigation to LeetCode problems
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.url && tab.url && tab.url.includes('leetcode.com/problems/')) {
+    const match = tab.url.match(/\/problems\/([^\/]+)/);
+    if (match) {
+      const slug = match[1];
+      tabData.set(tabId, { 
+        slug, 
+        metadata: getQuestionMeta(slug),
+        submissionCode: null 
+      });
+      console.info(`[Leet2Git] Tab ${tabId} navigated to problem: ${slug}`);
+    }
+  }
+});
+
+// Clean up when tabs are closed
+chrome.tabs.onRemoved.addListener((tabId) => {
+  tabData.delete(tabId);
+  console.info(`[Leet2Git] Cleaned up data for closed tab ${tabId}`);
+});
+
 // Initialize extension
 chrome.runtime.onInstalled.addListener(() => {
   console.log("Leet2Git extension installed");
@@ -42,10 +71,10 @@ chrome.runtime.onStartup.addListener(() => {
   updateBadge();
 });
 
-// GraphQL listener for question metadata
+// GraphQL listener for question metadata - now tab-aware
 chrome.webRequest.onCompleted.addListener(async (details) => {
   if (details.method !== "POST" || !details.url.startsWith("https://leetcode.com/graphql")) return;
-  if (details.statusCode !== 200) return;
+  if (details.statusCode !== 200 || !details.tabId) return;
 
   try {
     const response = await fetch(details.url, {
@@ -59,6 +88,13 @@ chrome.webRequest.onCompleted.addListener(async (details) => {
     const meta = parseQuestionMeta(data);
     if (meta) {
       cacheQuestionMeta(meta);
+      
+      // Update tab data if this tab is tracking this problem
+      const tabInfo = tabData.get(details.tabId);
+      if (tabInfo && tabInfo.slug === meta.slug) {
+        tabInfo.metadata = meta;
+        console.info(`[Leet2Git] Updated metadata for tab ${details.tabId}: ${meta.title}`);
+      }
     }
   } catch (error) {
     console.error(`[Leet2Git] GraphQL parsing error:`, error);
@@ -67,16 +103,44 @@ chrome.webRequest.onCompleted.addListener(async (details) => {
   urls: ["https://leetcode.com/graphql*"]
 });
 
+// Capture submit requests to store code per tab
+chrome.webRequest.onBeforeRequest.addListener(async (details) => {
+  if (details.method !== "POST" || !details.tabId) return;
+  
+  try {
+    const tabInfo = tabData.get(details.tabId);
+    if (!tabInfo) return;
+
+    if (details.requestBody?.raw?.[0]?.bytes) {
+      const decoder = new TextDecoder();
+      const bodyText = decoder.decode(details.requestBody.raw[0].bytes);
+      const bodyData = JSON.parse(bodyText);
+      
+      if (bodyData.typed_code) {
+        tabInfo.submissionCode = bodyData.typed_code;
+        console.info(`[Leet2Git] Captured code for tab ${details.tabId} (${tabInfo.slug})`);
+      }
+    }
+  } catch (error) {
+    console.error(`[Leet2Git] Error capturing submit code:`, error);
+  }
+}, {
+  urls: ["https://leetcode.com/problems/*/submit/"]
+}, ["requestBody"]);
+
 // Primary capture method: Intercept LeetCode submission check calls
 chrome.webRequest.onCompleted.addListener(async (details) => {
-  if (details.statusCode !== 200) return;
+  if (details.statusCode !== 200 || !details.tabId) return;
   
   // Extract submission ID from check URL
   const urlMatch = details.url.match(/\/submissions\/detail\/(\d+)\/check\//);
   if (!urlMatch) return;
   
   const submissionId = urlMatch[1];
-  console.info(`[Leet2Git] Intercepted submission check: ${submissionId}`);
+  console.info(`[Leet2Git] Intercepted submission check: ${submissionId} in tab ${details.tabId}`);
+  
+  // Link this submission to the tab
+  submissionToTab.set(submissionId, details.tabId);
   
   try {
     // Fetch the check response
@@ -101,69 +165,45 @@ chrome.webRequest.onCompleted.addListener(async (details) => {
       return;
     }
     
-    // Extract problem slug from the submission URL itself
-    const submissionMatch = details.url.match(/\/submissions\/detail\/(\d+)\/check\//);
-    if (!submissionMatch) return;
-    
-    // We need to get the problem slug from a LeetCode tab, not any active tab
-    const tabs = await chrome.tabs.query({ url: "https://leetcode.com/problems/*" });
-    let problemSlug = null;
-    
-    if (tabs.length > 0) {
-      // Find a LeetCode problem tab
-      for (const tab of tabs) {
-        const urlParts = tab.url.match(/\/problems\/([^\/]+)/);
-        if (urlParts) {
-          problemSlug = urlParts[1];
-          break;
-        }
-      }
-    }
-    
-    if (!problemSlug) {
-      console.warn(`[Leet2Git] No LeetCode problem tab found for submission ${submissionId}`);
+    // Get tab-specific data
+    const tabInfo = tabData.get(details.tabId);
+    if (!tabInfo) {
+      console.warn(`[Leet2Git] No tab data found for submission ${submissionId} in tab ${details.tabId}`);
       return;
     }
-    const problemTitle = problemSlug.split('-').map(word => 
-      word.charAt(0).toUpperCase() + word.slice(1)
-    ).join(' ');
     
-    // Get the submitted code from submit request (we need to store it temporarily)
-    const storedCode = await getStoredSubmissionCode(submissionId);
+    const problemSlug = tabInfo.slug;
+    const metadata = tabInfo.metadata || getQuestionMeta(problemSlug);
+    const submissionCode = tabInfo.submissionCode;
     
-    // Build initial solution payload
+    console.info(`[Leet2Git] Processing submission for problem: ${problemSlug} in tab ${details.tabId}`);
+    
+    // Build solution payload with tab-specific data
     const solutionPayload = {
       submissionId: submissionId,
-      slug: toPascalCase(problemSlug),
-      title: problemTitle,
-      tag: "Uncategorized", // We don't have tags from this endpoint
+      slug: problemSlug,
+      title: metadata?.title || problemSlug.split('-').map(word => 
+        word.charAt(0).toUpperCase() + word.slice(1)
+      ).join(' '),
+      difficulty: metadata?.difficulty || "Medium",
+      tag: metadata?.tag || "Uncategorized",
       lang: data.pretty_lang || data.lang,
-      difficulty: "Medium", // Default since we don't have difficulty here
-      code: storedCode || "// Code not captured",
+      code: submissionCode || "// Code not captured",
       runtime: data.display_runtime + " ms",
       memory: data.status_memory,
       capturedAt: new Date().toISOString(),
       timestamp: Date.now()
     };
-
-    // Replace fields with cached metadata if available
-    const meta = getQuestionMeta(problemSlug);
-    if (meta) {
-      solutionPayload.title = meta.title;
-      solutionPayload.difficulty = meta.difficulty;
-      solutionPayload.tag = meta.tag;
-      console.info(`[Leet2Git] Enhanced with cached metadata: ${meta.title}`);
-    }
     
     console.info(`[Leet2Git] Network capture successful:`, solutionPayload);
     
-    // Check for duplicates - check both submissionId and recent submissions with same title
+    // Check for duplicates
     const { pending = [] } = await chrome.storage.sync.get("pending");
     const isDuplicate = pending.some(item => 
       item.submissionId === submissionId || 
       (item.title === solutionPayload.title && 
        item.lang === solutionPayload.lang &&
-       Math.abs(item.timestamp - solutionPayload.timestamp) < 30000) // Within 30 seconds
+       Math.abs(item.timestamp - solutionPayload.timestamp) < 30000)
     );
     
     if (isDuplicate) {
@@ -181,10 +221,7 @@ chrome.webRequest.onCompleted.addListener(async (details) => {
     // Update badge
     await updateBadge();
     
-    // Mark successful network capture
-    lastNetworkCapture = Date.now();
-    
-    console.info(`[Leet2Git] Successfully captured submission ${submissionId}`);
+    console.info(`[Leet2Git] Successfully captured submission ${submissionId} for ${solutionPayload.title}`);
     
   } catch (error) {
     console.error(`[Leet2Git] Error processing submission ${submissionId}:`, error);
@@ -193,76 +230,28 @@ chrome.webRequest.onCompleted.addListener(async (details) => {
   urls: ["https://leetcode.com/submissions/detail/*/check/"]
 });
 
-// Capture submit requests to store code temporarily
-chrome.webRequest.onBeforeRequest.addListener(async (details) => {
-  if (details.method !== "POST") return;
-  
-  try {
-    const requestBody = JSON.parse(new TextDecoder().decode(details.requestBody?.raw?.[0]?.bytes));
-    if (requestBody?.typed_code && requestBody?.question_id) {
-      // Store the code temporarily - we'll match it with the submission ID later
-      await chrome.storage.local.set({
-        [`temp_code_${requestBody.question_id}`]: {
-          code: requestBody.typed_code,
-          lang: requestBody.lang,
-          timestamp: Date.now()
-        }
-      });
-      console.info(`[Leet2Git] Stored code for question ${requestBody.question_id}`);
-    }
-  } catch (error) {
-    console.error(`[Leet2Git] Error storing submit code:`, error);
-  }
-}, {
-  urls: ["https://leetcode.com/problems/*/submit/"]
-}, ["requestBody"]);
-
-// Helper to get stored submission code
+// Get stored submission code
 async function getStoredSubmissionCode(submissionId) {
-  try {
-    // We need to match by question - get all temp codes and find the most recent one
-    const allStorage = await chrome.storage.local.get();
-    const tempCodes = Object.entries(allStorage)
-      .filter(([key]) => key.startsWith('temp_code_'))
-      .map(([key, value]) => ({ key, ...value }))
-      .sort((a, b) => b.timestamp - a.timestamp);
-    
-    if (tempCodes.length > 0) {
-      const mostRecent = tempCodes[0];
-      // Clean up old codes (keep only last 5 minutes)
-      const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
-      const keysToRemove = tempCodes
-        .filter(code => code.timestamp < fiveMinutesAgo)
-        .map(code => code.key);
-      
-      if (keysToRemove.length > 0) {
-        await chrome.storage.local.remove(keysToRemove);
-      }
-      
-      return mostRecent.code;
-    }
-  } catch (error) {
-    console.error(`[Leet2Git] Error getting stored code:`, error);
+  const tabId = submissionToTab.get(submissionId);
+  if (tabId) {
+    const tabInfo = tabData.get(tabId);
+    return tabInfo?.submissionCode || null;
   }
   return null;
 }
 
-// Helper function to convert kebab-case to PascalCase
-function toPascalCase(str) {
-  if (!str) return "";
-  return str
-    .split('-')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join('');
-}
-
-// Update extension badge
+// Update badge
 async function updateBadge() {
   try {
     const { pending = [] } = await chrome.storage.sync.get("pending");
-    const text = pending.length > 0 ? pending.length.toString() : "";
-    chrome.action.setBadgeText({ text });
-    chrome.action.setBadgeBackgroundColor({ color: "#4f46e5" });
+    const count = pending.length;
+    
+    if (count > 0) {
+      chrome.action.setBadgeText({ text: count.toString() });
+      chrome.action.setBadgeBackgroundColor({ color: "#4CAF50" });
+    } else {
+      chrome.action.setBadgeText({ text: "" });
+    }
   } catch (error) {
     console.error("Error updating badge:", error);
   }
@@ -321,236 +310,308 @@ async function updateStats(solution) {
 // Message handler
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   switch (message.type) {
-    case "getHomeData":
-      handleGetHomeData(sendResponse);
-      return true;
+    case "auth":
+      handleAuth(sendResponse);
+      break;
     case "push":
       handlePush(sendResponse);
-      return true;
+      break;
+    case "getHomeData":
+      handleGetHomeData(sendResponse);
+      break;
+    case "solved_dom":
+      handleSolvedFromDOM(message.payload, sendResponse);
+      break;
+    case "updateConfig":
+      handleUpdateConfig(message.payload, sendResponse);
+      break;
     default:
-      sendResponse({ error: "Unknown message type" });
+      console.warn("Unknown message type:", message.type);
   }
+  return true; // Keep message channel open for async response
 });
 
-
-
-// Get home data for popup
-async function handleGetHomeData(sendResponse) {
+async function handleAuth(sendResponse) {
   try {
-    const [statsResult, pendingResult, authResult, configResult] = await Promise.all([
-      chrome.storage.sync.get("stats"),
-      chrome.storage.sync.get("pending"), 
-      chrome.storage.sync.get("github_auth"),
-      chrome.storage.sync.get("repo_config")
-    ]);
-
-    const data = {
-      stats: statsResult.stats || { streak: 0, counts: { easy: 0, medium: 0, hard: 0 }, recentSolves: [] },
-      pending: pendingResult.pending || [],
-      auth: authResult.github_auth || { connected: false },
-      config: configResult.repo_config || {}
-    };
-
-    sendResponse({ success: true, data });
+    const data = await chrome.storage.sync.get(['github_token', 'github_user', 'auth']);
+    
+    let authData = null;
+    if (data.github_token && data.github_user) {
+      authData = {
+        token: data.github_token,
+        username: data.github_user.username,
+        email: data.github_user.email,
+        connected: data.github_user.connected
+      };
+    } else if (data.auth) {
+      authData = data.auth;
+    }
+    
+    sendResponse({ 
+      success: true, 
+      auth: authData 
+    });
   } catch (error) {
-    sendResponse({ error: error.message });
+    console.error("Error handling auth:", error);
+    sendResponse({ success: false, error: error.message });
   }
 }
 
-// Handle push to GitHub
 async function handlePush(sendResponse) {
   try {
-    // Get all storage data to debug
-    const allData = await chrome.storage.sync.get();
-    console.info(`[Leet2Git] All storage data:`, allData);
+    const storageData = await chrome.storage.sync.get([
+      'pending', 'github_token', 'github_user', 'auth', 
+      'repo_config', 'config', 'owner', 'repo', 'branch'
+    ]);
     
-    const { github_auth, auth, github_token, token } = allData;
-    const githubAuth = github_auth || auth;
-    const authToken = githubAuth?.token || github_token || token;
+    console.log("Storage data for push:", storageData);
     
-    if (!authToken) {
-      console.error(`[Leet2Git] No GitHub token found in storage`);
-      sendResponse({ error: "GitHub not connected. Please configure your GitHub token in Options." });
-      return;
-    }
-
-    const { repo_config, config, owner, repo } = allData;
-    const repoConfig = repo_config || config;
-    const repoOwner = repoConfig?.owner || owner;
-    const repoName = repoConfig?.repo || repo;
-    
-    if (!repoOwner || !repoName) {
-      console.error(`[Leet2Git] Repository not configured. Owner: ${repoOwner}, Repo: ${repoName}`);
-      sendResponse({ error: "Repository not configured. Please set up your repository in Options." });
-      return;
-    }
-
-    const { pending = [] } = allData;
+    const pending = storageData.pending || [];
     if (pending.length === 0) {
-      sendResponse({ error: "No pending solutions" });
+      sendResponse({ success: false, error: "No pending solutions to push" });
       return;
     }
 
-    console.info(`[Leet2Git] Starting push of ${pending.length} solutions to GitHub`);
+    // Get auth data
+    let authData = null;
+    if (storageData.github_token && storageData.github_user) {
+      authData = {
+        token: storageData.github_token,
+        username: storageData.github_user.username,
+        email: storageData.github_user.email,
+        connected: storageData.github_user.connected
+      };
+    } else if (storageData.auth) {
+      authData = storageData.auth;
+    }
+
+    if (!authData || !authData.token) {
+      sendResponse({ success: false, error: "GitHub authentication required. Please configure in Options." });
+      return;
+    }
+
+    // Get config data
+    let config = storageData.repo_config || storageData.config || {};
     
+    // Try individual keys if config object doesn't exist
+    if (!config.owner || !config.repo) {
+      config = {
+        owner: storageData.owner || config.owner,
+        repo: storageData.repo || config.repo,
+        branch: storageData.branch || config.branch || 'main',
+        folderStructure: config.folderStructure || 'difficulty',
+        includeDescription: config.includeDescription !== false,
+        includeTestCases: config.includeTestCases !== false,
+        private: config.private || false
+      };
+    }
+
+    if (!config.owner || !config.repo) {
+      sendResponse({ success: false, error: "Repository configuration required. Please configure owner and repo in Options." });
+      return;
+    }
+
+    console.log("Using config:", config);
+    console.log("Using auth:", { ...authData, token: "[REDACTED]" });
+
+    // Push all pending solutions
     const results = [];
-    const errors = [];
-    
-    const authConfig = { token: authToken };
-    const repoConfiguration = { 
-      owner: repoOwner, 
-      repo: repoName,
-      folderStructure: repoConfig?.folderStructure || 'difficulty',
-      includeDescription: repoConfig?.includeDescription !== false
-    };
-    
     for (const solution of pending) {
       try {
-        const result = await pushSolutionToGitHub(solution, authConfig, repoConfiguration);
-        if (result.success) {
-          results.push(result);
-        } else {
-          errors.push({ solution: solution.title, error: result.error });
-        }
+        const result = await pushSolutionToGitHub(solution, authData, config);
+        results.push(result);
       } catch (error) {
-        errors.push({ solution: solution.title, error: error.message });
+        console.error(`Error pushing ${solution.title}:`, error);
+        results.push({ success: false, error: error.message });
       }
     }
-    
-    if (results.length > 0) {
-      // Clear successfully pushed solutions
+
+    const successCount = results.filter(r => r.success).length;
+    const failureCount = results.length - successCount;
+
+    if (successCount > 0) {
+      // Clear pending solutions
       await chrome.storage.sync.set({ pending: [] });
       await updateBadge();
-      
-      console.info(`[Leet2Git] Successfully pushed ${results.length} solutions`);
-      
-      if (errors.length > 0) {
-        sendResponse({ 
-          success: true, 
-          results,
-          message: `Pushed ${results.length} solutions, ${errors.length} failed`,
-          errors
-        });
-      } else {
-        sendResponse({ 
-          success: true, 
-          results,
-          message: `Successfully pushed ${results.length} solutions!`
-        });
-      }
+    }
+
+    if (failureCount === 0) {
+      sendResponse({ success: true, message: `Successfully pushed ${successCount} solution(s)` });
+    } else if (successCount === 0) {
+      const firstError = results.find(r => !r.success)?.error || "Unknown error";
+      sendResponse({ success: false, error: `Failed to push solutions: ${firstError}` });
     } else {
-      sendResponse({ 
-        error: `Failed to push solutions: ${errors.map(e => e.error).join(', ')}`
-      });
+      sendResponse({ success: true, message: `Pushed ${successCount} solutions, ${failureCount} failed` });
     }
+
   } catch (error) {
-    console.error(`[Leet2Git] Push error:`, error);
-    sendResponse({ error: error.message });
+    console.error("Error in handlePush:", error);
+    sendResponse({ success: false, error: error.message });
   }
 }
 
-// Push individual solution to GitHub
-async function pushSolutionToGitHub(solution, auth, config) {
+async function handleGetHomeData(sendResponse) {
   try {
-    const fileName = generateFileName(solution);
-    const filePath = generateFilePath(solution, config);
-    const content = generateFileContent(solution, config);
+    const data = await chrome.storage.sync.get([
+      'stats', 'pending', 'github_token', 'github_user', 'auth',
+      'repo_config', 'config', 'owner', 'repo'
+    ]);
     
-    console.info(`[Leet2Git] Pushing ${solution.title} to ${filePath}`);
-    
-    // Check if file exists
-    const checkUrl = `https://api.github.com/repos/${config.owner}/${config.repo}/contents/${filePath}`;
-    const checkResponse = await fetch(checkUrl, {
-      headers: {
-        'Authorization': `token ${auth.token}`,
-        'Accept': 'application/vnd.github.v3+json'
-      }
-    });
-    
-    let sha = null;
-    if (checkResponse.ok) {
-      const existingFile = await checkResponse.json();
-      sha = existingFile.sha;
-    }
-    
-    // Create or update file
-    const createUrl = `https://api.github.com/repos/${config.owner}/${config.repo}/contents/${filePath}`;
-    const createPayload = {
-      message: `Add solution: ${solution.title}`,
-      content: btoa(unescape(encodeURIComponent(content))), // Base64 encode
-      ...(sha && { sha }) // Include SHA if updating existing file
+    const stats = data.stats || { 
+      streak: 0, 
+      counts: { easy: 0, medium: 0, hard: 0 }, 
+      recentSolves: [] 
     };
     
-    const createResponse = await fetch(createUrl, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `token ${auth.token}`,
-        'Accept': 'application/vnd.github.v3+json',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(createPayload)
-    });
+    const pending = data.pending || [];
     
-    if (!createResponse.ok) {
-      const errorData = await createResponse.json();
-      throw new Error(`GitHub API error: ${errorData.message || createResponse.statusText}`);
+    let authData = null;
+    if (data.github_token && data.github_user) {
+      authData = {
+        token: data.github_token,
+        username: data.github_user.username,
+        email: data.github_user.email,
+        connected: data.github_user.connected
+      };
+    } else if (data.auth) {
+      authData = data.auth;
     }
     
-    const result = await createResponse.json();
-    return {
-      success: true,
-      solution: solution.title,
-      url: result.content.html_url,
-      path: filePath
+    let config = data.repo_config || data.config || {};
+    if (!config.owner || !config.repo) {
+      config = {
+        owner: data.owner || config.owner,
+        repo: data.repo || config.repo,
+        branch: config.branch || 'main',
+        folderStructure: config.folderStructure || 'difficulty',
+        includeDescription: config.includeDescription !== false,
+        includeTestCases: config.includeTestCases !== false,
+        private: config.private || false
+      };
+    }
+    
+    const homeData = {
+      stats,
+      pending,
+      auth: authData,
+      config
     };
     
+    sendResponse({ success: true, data: homeData });
   } catch (error) {
-    console.error(`[Leet2Git] Error pushing ${solution.title}:`, error);
-    return {
-      success: false,
-      solution: solution.title,
-      error: error.message
-    };
+    console.error("Error getting home data:", error);
+    sendResponse({ success: false, error: error.message });
   }
 }
 
-// Generate file name based on solution
-function generateFileName(solution) {
-  const cleanTitle = solution.title.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_');
-  const extension = getFileExtension(solution.lang);
-  return `${cleanTitle}${extension}`;
+async function handleSolvedFromDOM(payload, sendResponse) {
+  try {
+    console.info(`[Leet2Git] DOM capture received:`, payload);
+    
+    const pendingItem = {
+      id: payload.submissionId || Date.now().toString(),
+      title: payload.title,
+      slug: payload.slug,
+      language: payload.language,
+      difficulty: payload.difficulty,
+      code: payload.code,
+      timestamp: Date.now(),
+      description: payload.description,
+      submissionId: payload.submissionId
+    };
+    
+    // Add to pending
+    const { pending = [] } = await chrome.storage.sync.get("pending");
+    
+    // Check for duplicates
+    const isDuplicate = pending.some(item => 
+      item.submissionId === pendingItem.submissionId ||
+      (item.title === pendingItem.title && 
+       item.language === pendingItem.language &&
+       Math.abs(item.timestamp - pendingItem.timestamp) < 30000)
+    );
+    
+    if (!isDuplicate) {
+      pending.push(pendingItem);
+      await chrome.storage.sync.set({ pending });
+      await updateStats(pendingItem);
+      await updateBadge();
+      
+      console.info(`[Leet2Git] DOM capture successful: ${pendingItem.title}`);
+    }
+    
+    sendResponse({ success: true });
+  } catch (error) {
+    console.error("Error handling DOM solve:", error);
+    sendResponse({ success: false, error: error.message });
+  }
 }
 
-// Generate file path based on configuration
-function generateFilePath(solution, config) {
+async function handleUpdateConfig(config, sendResponse) {
+  try {
+    await chrome.storage.sync.set({ repo_config: config });
+    sendResponse({ success: true });
+  } catch (error) {
+    console.error("Error updating config:", error);
+    sendResponse({ success: false, error: error.message });
+  }
+}
+
+// GitHub integration functions
+async function pushSolutionToGitHub(solution, auth, config) {
   const fileName = generateFileName(solution);
-  const folderStructure = config.folderStructure || 'difficulty';
+  const filePath = generateFilePath(solution, config);
+  const content = generateFileContent(solution, config);
   
-  switch (folderStructure) {
+  console.log(`Pushing to GitHub: ${filePath}/${fileName}`);
+  
+  try {
+    const result = await upsertFile({
+      token: auth.token,
+      owner: config.owner,
+      repo: config.repo,
+      branch: config.branch || 'main',
+      path: `${filePath}/${fileName}`,
+      content: content,
+      message: `Add solution: ${solution.title}`
+    });
+    
+    return result;
+  } catch (error) {
+    console.error(`GitHub push error for ${solution.title}:`, error);
+    throw error;
+  }
+}
+
+function generateFileName(solution) {
+  const extension = getFileExtension(solution.lang);
+  const cleanTitle = solution.title.replace(/[^a-zA-Z0-9]/g, '');
+  return `${cleanTitle}.${extension}`;
+}
+
+function generateFilePath(solution, config) {
+  switch (config.folderStructure) {
     case 'difficulty':
-      return `${solution.difficulty}/${fileName}`;
+      return solution.difficulty;
     case 'topic':
-      return `${solution.tag || 'Uncategorized'}/${fileName}`;
+      return solution.tag || 'Uncategorized';
     case 'flat':
     default:
-      return fileName;
+      return '.';
   }
 }
 
-// Generate file content
 function generateFileContent(solution, config) {
   let content = '';
   
-  if (config.includeDescription !== false) {
-    content += `/*\n`;
-    content += `Problem: ${solution.title}\n`;
-    content += `Difficulty: ${solution.difficulty}\n`;
-    content += `Language: ${solution.lang}\n`;
-    if (solution.tag) content += `Topic: ${solution.tag}\n`;
-    if (solution.runtime) content += `Runtime: ${solution.runtime}\n`;
-    if (solution.memory) content += `Memory: ${solution.memory}\n`;
-    content += `Date: ${new Date(solution.timestamp).toLocaleDateString()}\n`;
-    content += `*/\n\n`;
+  if (config.includeDescription) {
+    content += `/*\n * ${solution.title}\n * Difficulty: ${solution.difficulty}\n`;
+    if (solution.tag) {
+      content += ` * Topic: ${solution.tag}\n`;
+    }
+    content += ` * Runtime: ${solution.runtime || 'N/A'}\n`;
+    content += ` * Memory: ${solution.memory || 'N/A'}\n`;
+    content += ` */\n\n`;
   }
   
   content += solution.code;
@@ -558,27 +619,73 @@ function generateFileContent(solution, config) {
   return content;
 }
 
-// Get file extension based on language
 function getFileExtension(language) {
-  const langMap = {
-    'javascript': '.js',
-    'python': '.py',
-    'python3': '.py',
-    'java': '.java',
-    'cpp': '.cpp',
-    'c++': '.cpp',
-    'c': '.c',
-    'csharp': '.cs',
-    'c#': '.cs',
-    'go': '.go',
-    'rust': '.rs',
-    'ruby': '.rb',
-    'swift': '.swift',
-    'kotlin': '.kt',
-    'typescript': '.ts',
-    'php': '.php',
-    'scala': '.scala'
+  const extensions = {
+    'JavaScript': 'js',
+    'Python': 'py',
+    'Python3': 'py',
+    'Java': 'java',
+    'C++': 'cpp',
+    'C': 'c',
+    'C#': 'cs',
+    'Ruby': 'rb',
+    'Swift': 'swift',
+    'Go': 'go',
+    'Scala': 'scala',
+    'Kotlin': 'kt',
+    'Rust': 'rs',
+    'PHP': 'php',
+    'TypeScript': 'ts'
+  };
+  return extensions[language] || 'txt';
+}
+
+async function upsertFile({ token, owner, repo, branch, path, content, message }) {
+  const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+  
+  // First, try to get the existing file
+  let sha = null;
+  try {
+    const getResponse = await fetch(url, {
+      headers: {
+        'Authorization': `token ${token}`,
+        'Accept': 'application/vnd.github.v3+json'
+      }
+    });
+    
+    if (getResponse.ok) {
+      const existingFile = await getResponse.json();
+      sha = existingFile.sha;
+    }
+  } catch (error) {
+    // File doesn't exist, which is fine
+  }
+  
+  // Create or update the file
+  const body = {
+    message: message || `Update ${path}`,
+    content: btoa(unescape(encodeURIComponent(content))),
+    branch: branch
   };
   
-  return langMap[language?.toLowerCase()] || '.txt';
+  if (sha) {
+    body.sha = sha;
+  }
+  
+  const response = await fetch(url, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `token ${token}`,
+      'Accept': 'application/vnd.github.v3+json',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(body)
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(`GitHub API error: ${errorData.message || response.statusText}`);
+  }
+  
+  return { success: true };
 }
