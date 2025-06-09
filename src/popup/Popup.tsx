@@ -327,42 +327,79 @@ const PushSection = ({ pending, auth, setHomeData, fetchData }: {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '200px', overflowY: 'auto' }}>
             {pending.map((item, index) => (
-              <div key={index} style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: '8px 12px',
+              <div key={item.id || index} style={{
                 background: 'rgba(255, 255, 255, 0.05)',
                 borderRadius: '8px',
                 border: '1px solid rgba(255, 255, 255, 0.08)'
               }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  <div style={{ fontSize: '13px', fontWeight: '500', color: '#ffffff' }}>
-                    {item.title}
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{
-                      fontSize: '10px',
-                      padding: '2px 6px',
-                      borderRadius: '4px',
-                      background: item.difficulty === 'Easy' ? '#10b981' : 
-                                item.difficulty === 'Medium' ? '#f59e0b' : '#ef4444',
-                      color: '#ffffff',
-                      fontWeight: '500'
-                    }}>
-                      {item.difficulty}
-                    </span>
-                    <span style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.7)' }}>
-                      {item.language}
-                    </span>
-                  </div>
-                </div>
                 <div style={{
-                  width: '8px',
-                  height: '8px',
-                  borderRadius: '50%',
-                  background: '#f59e0b'
-                }} />
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '8px 12px'
+                }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1 }}>
+                    <div style={{ fontSize: '13px', fontWeight: '500', color: '#ffffff' }}>
+                      {item.title}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{
+                        fontSize: '10px',
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        background: item.difficulty === 'Easy' ? '#10b981' : 
+                                  item.difficulty === 'Medium' ? '#f59e0b' : '#ef4444',
+                        color: '#ffffff',
+                        fontWeight: '500'
+                      }}>
+                        {item.difficulty}
+                      </span>
+                      <span style={{ 
+                        fontSize: '11px', 
+                        color: 'rgba(255, 255, 255, 0.7)',
+                        background: `rgba(139, 92, 246, 0.2)`,
+                        padding: '1px 4px',
+                        borderRadius: '3px'
+                      }}>
+                        {item.language}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => toggleCodePreview(item.id || `${index}`)}
+                    style={{
+                      background: 'rgba(139, 92, 246, 0.3)',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '4px',
+                      padding: '4px 8px',
+                      fontSize: '10px',
+                      cursor: 'pointer',
+                      marginLeft: '8px'
+                    }}
+                  >
+                    {expandedItems.has(item.id || `${index}`) ? 'Hide' : 'Code'}
+                  </button>
+                </div>
+                {expandedItems.has(item.id || `${index}`) && (
+                  <div style={{
+                    padding: '8px 12px',
+                    borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+                    background: 'rgba(0, 0, 0, 0.2)'
+                  }}>
+                    <pre style={{
+                      fontSize: '10px',
+                      color: 'rgba(255, 255, 255, 0.8)',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                      margin: '0',
+                      maxHeight: '150px',
+                      overflowY: 'auto'
+                    }}>
+                      {item.code}
+                    </pre>
+                  </div>
+                )}
               </div>
             ))}
           </div>

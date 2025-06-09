@@ -14,7 +14,7 @@
     "src": "content.ts-loader.js"
   },
   "src/background.ts": {
-    "file": "assets/background.ts.CcRyA2mZ.js",
+    "file": "assets/background.ts.CcNDslv_.js",
     "name": "background.ts",
     "src": "src/background.ts",
     "isEntry": true
@@ -35,7 +35,7 @@
     ]
   },
   "src/popup/index.html": {
-    "file": "assets/index.html.BrqhFLUj.js",
+    "file": "assets/index.html.BeGMoHKy.js",
     "name": "index.html",
     "src": "src/popup/index.html",
     "isEntry": true,

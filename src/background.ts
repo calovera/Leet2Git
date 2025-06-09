@@ -148,7 +148,7 @@ chrome.webRequest.onCompleted.addListener(async (details) => {
       title: metadata?.title || toPascalCase(problemSlug),
       slug: problemSlug,
       difficulty: metadata?.difficulty || "Easy",
-      tag: metadata?.topicTags?.[0]?.name || metadata?.categoryTitle || "Algorithms",
+      tag: (metadata?.topicTags && metadata.topicTags.length > 0) ? metadata.topicTags[0].name : (metadata?.categoryTitle || "Algorithms"),
       code: codeRecord.code,
       language: codeRecord.lang,
       runtime: data.display_runtime || "N/A",
@@ -322,22 +322,22 @@ async function handleUpdateConfig(config, sendResponse) {
 
 async function handlePush(sendResponse) {
   try {
-    const storageData = await chrome.storage.sync.get(['pending', 'auth', 'config']);
+    const data = await chrome.storage.sync.get(['pending', 'auth', 'config']);
+    const pending = data.pending || [];
     
-    const pending = storageData.pending || [];
     if (pending.length === 0) {
-      sendResponse({ success: false, error: "No pending solutions to push" });
+      sendResponse({ success: false, error: 'No pending solutions to push' });
       return;
     }
-
-    const authData = storageData.auth;
-    if (!authData || !authData.token) {
-      sendResponse({ success: false, error: "GitHub authentication required" });
+    
+    const auth = data.auth;
+    if (!auth || !auth.token) {
+      sendResponse({ success: false, error: 'GitHub authentication required' });
       return;
     }
-
-    const config = storageData.config || {
-      owner: authData.username,
+    
+    const config = data.config || {
+      owner: auth.username,
       repo: 'leetcode-solutions',
       branch: 'main',
       private: false,
@@ -345,16 +345,16 @@ async function handlePush(sendResponse) {
       includeDescription: true,
       includeTestCases: false
     };
-
-    // Ensure repository exists first
-    await ensureRepositoryExists(authData.token, config);
-
+    
+    // Ensure repository exists
+    await ensureRepositoryExists(auth.token, config);
+    
     let successCount = 0;
     const results = [];
     
     for (const solution of pending) {
       try {
-        await pushSolutionToGitHub(solution, authData, config);
+        await pushSolutionToGitHub(solution, auth, config);
         successCount++;
         results.push({ success: true, title: solution.title });
       } catch (error) {
@@ -362,16 +362,18 @@ async function handlePush(sendResponse) {
         results.push({ success: false, title: solution.title, error: error.message });
       }
     }
-
+    
+    // Clear pending solutions
     await chrome.storage.sync.set({ pending: [] });
     await updateBadge();
-
-    sendResponse({ 
+    
+    sendResponse({
       success: true,
       count: successCount,
       results: results,
       message: `Pushed ${successCount}/${pending.length} solutions`
     });
+    
   } catch (error) {
     console.error("Error handling push:", error);
     sendResponse({ success: false, error: error.message });
@@ -396,6 +398,7 @@ async function ensureRepositoryExists(token, config) {
 
     if (response.status === 404) {
       console.log(`Creating repository ${config.owner}/${config.repo}`);
+      
       const createResponse = await fetch('https://api.github.com/user/repos', {
         method: 'POST',
         headers: {
@@ -511,11 +514,11 @@ function getFileExtension(language) {
 }
 
 async function upsertFile({ token, owner, repo, branch, path, content, message }) {
-  const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+  const fileUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
   
   let sha = null;
   try {
-    const getResponse = await fetch(url, {
+    const getResponse = await fetch(fileUrl, {
       headers: {
         'Authorization': `token ${token}`,
         'Accept': 'application/vnd.github.v3+json'
@@ -527,27 +530,27 @@ async function upsertFile({ token, owner, repo, branch, path, content, message }
       sha = fileData.sha;
     }
   } catch (error) {
-    // File doesn't exist, that's ok
+    // File doesn't exist, that's okay
   }
   
-  const body = {
+  const updateData = {
     message: message || `Update ${path}`,
     content: btoa(unescape(encodeURIComponent(content))),
-    branch
+    branch: branch
   };
   
   if (sha) {
-    body.sha = sha;
+    updateData.sha = sha;
   }
   
-  const response = await fetch(url, {
+  const response = await fetch(fileUrl, {
     method: 'PUT',
     headers: {
       'Authorization': `token ${token}`,
       'Accept': 'application/vnd.github.v3+json',
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify(body)
+    body: JSON.stringify(updateData)
   });
   
   if (!response.ok) {
@@ -558,25 +561,26 @@ async function upsertFile({ token, owner, repo, branch, path, content, message }
   return { success: true };
 }
 
+// Message handler
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   switch (message.type) {
-    case "graphql_question_data":
-      const meta = {
+    case 'graphql_question_data':
+      const questionMeta = {
         slug: message.data.slug,
         title: message.data.title,
         difficulty: message.data.difficulty,
-        tag: message.data.topicTags?.[0]?.name || message.data.categoryTitle || "Algorithms",
+        tag: (message.data.topicTags && message.data.topicTags.length > 0) ? message.data.topicTags[0].name : (message.data.categoryTitle || "Algorithms"),
         categoryTitle: message.data.categoryTitle,
         topicTags: message.data.topicTags
       };
       
-      cacheQuestionMeta(meta);
+      cacheQuestionMeta(questionMeta);
       
       if (sender.tab?.id) {
         const tabInfo = tabData.get(sender.tab.id);
-        if (tabInfo && tabInfo.slug === meta.slug) {
-          tabInfo.metadata = meta;
-          console.log(`[Leet2Git] Updated metadata for tab ${sender.tab.id}: ${meta.title}`);
+        if (tabInfo && tabInfo.slug === questionMeta.slug) {
+          tabInfo.metadata = questionMeta;
+          console.log(`[Leet2Git] Updated metadata for tab ${sender.tab.id}: ${questionMeta.title}`);
         }
       }
       
