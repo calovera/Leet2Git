@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Capture Test - Leet2Git</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 900px;
+            margin: 20px auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .test-section {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        .btn-success { background: #28a745; }
+        .btn-success:hover { background: #218838; }
+        .btn-warning { background: #ffc107; color: #212529; }
+        .btn-warning:hover { background: #e0a800; }
+        pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+        .log-output {
+            background: #1a1a1a;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .test-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .api-simulation {
+            background: #e8f4fd;
+            border: 2px solid #007bff;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        .code-block {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 14px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🚀 Leet2Git API Capture Test Suite</h1>
+    <p>Testing the new webRequest-based API interception system for LeetCode submissions.</p>
+
+    <div class="test-section">
+        <h2>🔧 Extension Status</h2>
+        <div id="extensionStatus" class="status warning">Checking extension...</div>
+        <button onclick="checkExtension()">Check Extension</button>
+        <button onclick="testBackgroundConnection()">Test Background Script</button>
+    </div>
+
+    <div class="test-grid">
+        <div class="test-section">
+            <h2>📡 Network Capture Test</h2>
+            <div id="networkStatus" class="status info">Ready to test network interception</div>
+            <button onclick="simulateAPICall()" class="btn-success">Simulate LeetCode API Call</button>
+            <button onclick="testWebRequestPerms()">Check WebRequest Permissions</button>
+            
+            <div class="api-simulation">
+                <h4>Simulated API Response:</h4>
+                <div class="code-block" id="simulatedResponse">
+{
+  "status_display": "Accepted",
+  "lang": "javascript",
+  "question": {
+    "title": "Two Sum",
+    "title_slug": "two-sum",
+    "difficulty": "Easy"
+  },
+  "code": "function twoSum(nums, target) {\n    // Solution code here\n    return [];\n}",
+  "tags": ["Array", "Hash Table"]
+}
+                </div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>🏪 Storage & Badge Test</h2>
+            <div id="storageStatus" class="status info">Storage ready</div>
+            <button onclick="checkStorageData()">Check Storage</button>
+            <button onclick="clearAllData()" class="btn-warning">Clear All Data</button>
+            <button onclick="addTestSolution()" class="btn-success">Add Test Solution</button>
+            
+            <h4>Current Storage:</h4>
+            <pre id="storageDisplay">Loading...</pre>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🎯 End-to-End Test</h2>
+        <div id="e2eStatus" class="status info">Ready for comprehensive test</div>
+        <button onclick="runFullTest()" class="btn-success">Run Full API Capture Test</button>
+        <button onclick="testDOMFallback()">Test DOM Fallback</button>
+        
+        <h4>Test Instructions:</h4>
+        <ol>
+            <li>Ensure extension is loaded with new permissions</li>
+            <li>Go to any LeetCode problem page</li>
+            <li>Submit an accepted solution</li>
+            <li>Check console for API interception logs</li>
+            <li>Verify solution appears in extension popup</li>
+        </ol>
+    </div>
+
+    <div class="test-section">
+        <h2>📊 Real-time Logs</h2>
+        <div id="logOutput" class="log-output">Waiting for extension logs...</div>
+        <button onclick="clearLogs()">Clear Logs</button>
+        <button onclick="exportLogs()">Export Logs</button>
+    </div>
+
+    <script>
+        let logBuffer = [];
+        let testResults = {};
+
+        // Capture console logs
+        const originalLog = console.log;
+        const originalInfo = console.info;
+        const originalWarn = console.warn;
+        const originalError = console.error;
+
+        [console.log, console.info, console.warn, console.error].forEach((originalFn, index) => {
+            const levels = ['log', 'info', 'warn', 'error'];
+            const level = levels[index];
+            
+            console[level] = function(...args) {
+                originalFn.apply(console, args);
+                
+                const logText = args.join(' ');
+                if (logText.includes('[Leet2Git]') || logText.includes('Leet2Git')) {
+                    const timestamp = new Date().toLocaleTimeString();
+                    logBuffer.push(`[${timestamp}] ${level.toUpperCase()}: ${logText}`);
+                    updateLogDisplay();
+                }
+            };
+        });
+
+        function updateLogDisplay() {
+            const logDiv = document.getElementById('logOutput');
+            logDiv.textContent = logBuffer.slice(-30).join('\n') || 'No logs yet...';
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function clearLogs() {
+            logBuffer = [];
+            updateLogDisplay();
+        }
+
+        function exportLogs() {
+            const blob = new Blob([logBuffer.join('\n')], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `leet2git-logs-${Date.now()}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function updateStatus(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `status ${type}`;
+        }
+
+        async function checkExtension() {
+            if (typeof chrome !== 'undefined' && chrome.runtime) {
+                updateStatus('extensionStatus', '✅ Extension loaded and active', 'success');
+                
+                // Check permissions
+                const permissions = await chrome.permissions.getAll();
+                console.log('[Test] Extension permissions:', permissions);
+                
+                testResults.extensionLoaded = true;
+            } else {
+                updateStatus('extensionStatus', '❌ Extension not loaded', 'error');
+                testResults.extensionLoaded = false;
+            }
+        }
+
+        async function testBackgroundConnection() {
+            if (!chrome?.runtime) {
+                updateStatus('extensionStatus', '❌ Chrome runtime not available', 'error');
+                return;
+            }
+
+            try {
+                chrome.runtime.sendMessage({ type: 'getHomeData' }, (response) => {
+                    if (chrome.runtime.lastError) {
+                        console.error('[Test] Background connection error:', chrome.runtime.lastError);
+                        updateStatus('extensionStatus', '❌ Background script not responding', 'error');
+                    } else if (response) {
+                        console.log('[Test] Background script response:', response);
+                        updateStatus('extensionStatus', '✅ Background script connected', 'success');
+                        testResults.backgroundConnected = true;
+                    } else {
+                        updateStatus('extensionStatus', '⚠️ Background script silent', 'warning');
+                    }
+                });
+            } catch (error) {
+                console.error('[Test] Background test error:', error);
+                updateStatus('extensionStatus', '❌ Background test failed', 'error');
+            }
+        }
+
+        async function testWebRequestPerms() {
+            if (!chrome?.permissions) {
+                updateStatus('networkStatus', '❌ Permissions API not available', 'error');
+                return;
+            }
+
+            try {
+                const hasWebRequest = await chrome.permissions.contains({
+                    permissions: ['webRequest']
+                });
+                
+                const hasLeetCodeHost = await chrome.permissions.contains({
+                    origins: ['https://leetcode.com/*']
+                });
+
+                if (hasWebRequest && hasLeetCodeHost) {
+                    updateStatus('networkStatus', '✅ WebRequest permissions granted', 'success');
+                    testResults.webRequestPerms = true;
+                } else {
+                    updateStatus('networkStatus', '❌ Missing webRequest or host permissions', 'error');
+                    testResults.webRequestPerms = false;
+                }
+            } catch (error) {
+                console.error('[Test] Permission check error:', error);
+                updateStatus('networkStatus', '❌ Permission check failed', 'error');
+            }
+        }
+
+        async function simulateAPICall() {
+            updateStatus('networkStatus', '🔄 Simulating LeetCode API call...', 'warning');
+            
+            // Simulate what would happen when background script intercepts API call
+            const mockSubmissionData = {
+                submissionId: `test-${Date.now()}`,
+                slug: "TwoSum",
+                title: "Two Sum",
+                tag: "Array",
+                lang: "javascript", 
+                difficulty: "Easy",
+                code: "function twoSum(nums, target) {\n    const map = new Map();\n    for (let i = 0; i < nums.length; i++) {\n        const complement = target - nums[i];\n        if (map.has(complement)) {\n            return [map.get(complement), i];\n        }\n        map.set(nums[i], i);\n    }\n    return [];\n}",
+                capturedAt: new Date().toISOString(),
+                timestamp: Date.now()
+            };
+
+            if (chrome?.runtime) {
+                chrome.runtime.sendMessage({
+                    type: 'solved_dom',
+                    payload: mockSubmissionData
+                }, (response) => {
+                    if (response?.success) {
+                        updateStatus('networkStatus', '✅ API simulation successful', 'success');
+                        testResults.apiSimulation = true;
+                        checkStorageData();
+                    } else {
+                        updateStatus('networkStatus', `❌ API simulation failed: ${response?.reason || 'unknown'}`, 'error');
+                        testResults.apiSimulation = false;
+                    }
+                });
+            } else {
+                updateStatus('networkStatus', '❌ Chrome runtime not available for simulation', 'error');
+            }
+        }
+
+        async function checkStorageData() {
+            if (!chrome?.storage) {
+                updateStatus('storageStatus', '❌ Storage API not available', 'error');
+                return;
+            }
+
+            try {
+                const data = await chrome.storage.sync.get(['pending', 'stats', 'github_auth']);
+                console.log('[Test] Storage data:', data);
+                
+                document.getElementById('storageDisplay').textContent = JSON.stringify(data, null, 2);
+                
+                const pendingCount = data.pending?.length || 0;
+                updateStatus('storageStatus', `✅ Storage accessible - ${pendingCount} pending solutions`, 'success');
+                testResults.storageAccess = true;
+            } catch (error) {
+                console.error('[Test] Storage error:', error);
+                updateStatus('storageStatus', '❌ Storage access failed', 'error');
+                testResults.storageAccess = false;
+            }
+        }
+
+        async function clearAllData() {
+            if (!chrome?.storage) return;
+            
+            try {
+                await chrome.storage.sync.clear();
+                updateStatus('storageStatus', '🧹 All data cleared', 'warning');
+                checkStorageData();
+            } catch (error) {
+                console.error('[Test] Clear data error:', error);
+            }
+        }
+
+        async function addTestSolution() {
+            const testSolution = {
+                submissionId: `manual-test-${Date.now()}`,
+                title: "Test Problem",
+                slug: "test-problem",
+                difficulty: "Easy",
+                code: "// Test solution code",
+                language: "JavaScript",
+                timestamp: Date.now()
+            };
+
+            if (chrome?.runtime) {
+                chrome.runtime.sendMessage({
+                    type: 'solved_dom',
+                    payload: testSolution
+                }, (response) => {
+                    if (response?.success) {
+                        updateStatus('storageStatus', '✅ Test solution added', 'success');
+                        checkStorageData();
+                    } else {
+                        updateStatus('storageStatus', `❌ Failed to add test solution: ${response?.reason}`, 'error');
+                    }
+                });
+            }
+        }
+
+        async function runFullTest() {
+            updateStatus('e2eStatus', '🔄 Running comprehensive test...', 'warning');
+            
+            await checkExtension();
+            await testWebRequestPerms();
+            await checkStorageData();
+            await simulateAPICall();
+            
+            const passedTests = Object.values(testResults).filter(Boolean).length;
+            const totalTests = Object.keys(testResults).length;
+            
+            if (passedTests === totalTests) {
+                updateStatus('e2eStatus', `✅ All tests passed (${passedTests}/${totalTests})`, 'success');
+            } else {
+                updateStatus('e2eStatus', `⚠️ Some tests failed (${passedTests}/${totalTests})`, 'warning');
+            }
+            
+            console.log('[Test] Full test results:', testResults);
+        }
+
+        async function testDOMFallback() {
+            updateStatus('e2eStatus', '🔄 Testing DOM fallback...', 'warning');
+            
+            const domPayload = {
+                title: "DOM Fallback Test",
+                slug: "dom-test",
+                difficulty: "Medium",
+                code: "// DOM extracted code",
+                language: "JavaScript",
+                timestamp: Date.now()
+            };
+
+            if (chrome?.runtime) {
+                chrome.runtime.sendMessage({
+                    type: 'solved_dom',
+                    payload: domPayload
+                }, (response) => {
+                    if (response?.success) {
+                        updateStatus('e2eStatus', '✅ DOM fallback working', 'success');
+                    } else {
+                        updateStatus('e2eStatus', `⚠️ DOM fallback: ${response?.reason || 'failed'}`, 'warning');
+                    }
+                });
+            }
+        }
+
+        // Auto-initialize tests
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                checkExtension();
+                checkStorageData();
+            }, 500);
+        });
+    </script>
+</body>
+</html>

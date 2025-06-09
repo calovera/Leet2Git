@@ -1,17 +1,8 @@
-// Leet2Git Background Script - Production Ready
-console.log("Leet2Git extension background script loaded");
+// Leet2Git Background Script - API-based Capture
+console.log("Leet2Git background script loaded");
 
-// Update badge with pending count
-async function updateBadge() {
-  try {
-    const { pending = [] } = await chrome.storage.sync.get("pending");
-    const text = pending.length > 0 ? pending.length.toString() : "";
-    chrome.action.setBadgeText({ text });
-    chrome.action.setBadgeBackgroundColor({ color: "#4f46e5" });
-  } catch (error) {
-    console.error("Error updating badge:", error);
-  }
-}
+let lastNetworkCapture = 0;
+let lastDOMCapture = 0;
 
 // Initialize extension
 chrome.runtime.onInstalled.addListener(() => {
@@ -23,207 +14,133 @@ chrome.runtime.onStartup.addListener(() => {
   updateBadge();
 });
 
-// Listen for LeetCode API submissions
+// Primary capture method: Intercept LeetCode API calls
 chrome.webRequest.onCompleted.addListener(async (details) => {
-  if (details.method === "POST" && details.statusCode === 200) {
-    try {
-      const submissionMatch = details.url.match(/\/api\/submissions\/(\d+)/);
-      if (!submissionMatch) return;
-
-      // Wait a bit for the submission to process
-      setTimeout(async () => {
-        const tabs = await chrome.tabs.query({ url: "https://leetcode.com/*" });
-        if (tabs.length === 0) return;
-
-        const tabId = tabs[0].id;
-        
-        // Check if submission was accepted
-        try {
-          const results = await chrome.scripting.executeScript({
-            target: { tabId },
-            func: checkForAcceptedSubmission
-          });
-
-          if (results[0]?.result) {
-            await handleAcceptedSubmission(results[0].result, tabId);
-          }
-        } catch (error) {
-          console.error("Error checking submission:", error);
-        }
-      }, 2000);
-    } catch (error) {
-      console.error("Error processing submission:", error);
+  if (details.statusCode !== 200) return;
+  
+  // Extract submission ID from URL
+  const urlMatch = details.url.match(/\/api\/submission-details\/(\d+)\//);
+  if (!urlMatch) return;
+  
+  const submissionId = urlMatch[1];
+  console.info(`[Leet2Git] Intercepted submission API call: ${submissionId}`);
+  
+  try {
+    // Fetch submission details with credentials
+    const response = await fetch(details.url, {
+      credentials: 'include',
+      headers: {
+        'Accept': 'application/json',
+      }
+    });
+    
+    if (!response.ok) {
+      console.error(`[Leet2Git] Failed to fetch submission details: ${response.status}`);
+      return;
     }
+    
+    const data = await response.json();
+    console.info(`[Leet2Git] Fetched submission data:`, data);
+    
+    // Only process accepted submissions
+    if (data.status_display !== "Accepted") {
+      console.info(`[Leet2Git] Submission not accepted: ${data.status_display}`);
+      return;
+    }
+    
+    // Build solution payload
+    const solutionPayload = {
+      submissionId: submissionId,
+      slug: toPascalCase(data.question?.title_slug || data.title_slug),
+      title: data.question?.title || data.question_title,
+      tag: (data.tags && data.tags.length > 0) ? data.tags[0] : "Uncategorized",
+      lang: data.lang,
+      difficulty: data.question?.difficulty || "Medium",
+      code: data.code,
+      capturedAt: new Date().toISOString(),
+      timestamp: Date.now()
+    };
+    
+    console.info(`[Leet2Git] Network capture successful:`, solutionPayload);
+    
+    // Check for duplicates
+    const { pending = [] } = await chrome.storage.sync.get("pending");
+    const isDuplicate = pending.some(item => item.submissionId === submissionId);
+    
+    if (isDuplicate) {
+      console.info(`[Leet2Git] Duplicate submission ${submissionId}, skipping`);
+      return;
+    }
+    
+    // Add to pending solutions
+    pending.push(solutionPayload);
+    await chrome.storage.sync.set({ pending });
+    
+    // Update stats
+    await updateStats(solutionPayload);
+    
+    // Update badge
+    await updateBadge();
+    
+    // Mark successful network capture
+    lastNetworkCapture = Date.now();
+    
+    console.info(`[Leet2Git] Successfully captured submission ${submissionId}`);
+    
+  } catch (error) {
+    console.error(`[Leet2Git] Error processing submission ${submissionId}:`, error);
   }
 }, {
-  urls: [
-    "https://leetcode.com/api/submissions/*",
-    "https://leetcode.com/problems/*/submit/"
-  ]
+  urls: ["https://leetcode.com/api/submission-details/*"]
 });
 
-// Function to check for accepted submission in page
-function checkForAcceptedSubmission() {
-  // Check for success indicators
-  const successSelectors = [
-    '[data-cy="submission-result"]',
-    '.text-green-500',
-    '[class*="text-green"]',
-    '.submission-status',
-    '[data-e2e-locator="submission-result"]'
-  ];
-
-  let acceptedElement = null;
-  for (const selector of successSelectors) {
-    const elements = document.querySelectorAll(selector);
-    for (const element of elements) {
-      if (element.textContent?.includes("Accepted")) {
-        acceptedElement = element;
-        break;
-      }
-    }
-    if (acceptedElement) break;
-  }
-
-  if (!acceptedElement) return null;
-
-  // Extract problem data
-  const titleElement = document.querySelector('[data-cy="question-title"]') || 
-                     document.querySelector('.css-v3d350') || 
-                     document.querySelector('h1');
-  
-  const title = titleElement?.textContent?.trim() || "";
-  if (!title) return null;
-
-  const slug = window.location.pathname.split("/problems/")[1]?.split("/")[0] || "";
-  
-  // Extract difficulty
-  const difficultyElement = document.querySelector("[diff]") || 
-                           document.querySelector(".css-dcmtd5") || 
-                           document.querySelector('[class*="difficulty"]');
-  
-  let difficulty = "Medium";
-  if (difficultyElement) {
-    const diffText = difficultyElement.textContent?.toLowerCase() || "";
-    if (diffText.includes("easy")) difficulty = "Easy";
-    else if (diffText.includes("hard")) difficulty = "Hard";
-  }
-
-  // Extract description
-  const descElement = document.querySelector('[data-track-load="description_content"]') ||
-                     document.querySelector('.css-1iinkds') ||
-                     document.querySelector('[class*="question-content"]');
-  
-  const description = descElement?.textContent?.trim() || "";
-
-  // Extract code from editor
-  const code = extractCodeFromEditor();
-  if (!code) return null;
-
-  // Extract language
-  const language = extractLanguage();
-
-  return {
-    title,
-    slug,
-    difficulty,
-    description,
-    code,
-    language,
-    timestamp: Date.now()
-  };
+// Helper function to convert kebab-case to PascalCase
+function toPascalCase(str) {
+  if (!str) return "";
+  return str
+    .split('-')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join('');
 }
 
-// Extract code from Monaco editor or CodeMirror
-function extractCodeFromEditor() {
-  // Try Monaco editor first
-  const monacoLines = document.querySelectorAll('.monaco-editor .view-lines .view-line');
-  if (monacoLines.length > 0) {
-    return Array.from(monacoLines)
-      .map(line => line.textContent || "")
-      .join('\n');
-  }
-
-  // Try CodeMirror
-  const codeMirror = document.querySelector('.CodeMirror');
-  if (codeMirror && codeMirror.CodeMirror) {
-    return codeMirror.CodeMirror.getValue();
-  }
-
-  // Try textarea fallback
-  const textarea = document.querySelector('textarea[data-cy="code-editor"]');
-  if (textarea) {
-    return textarea.value;
-  }
-
-  // Try Monaco API if available
-  if (window.monaco && window.monaco.editor) {
-    const models = window.monaco.editor.getModels();
-    if (models.length > 0) {
-      return models[0].getValue();
-    }
-  }
-
-  return "";
-}
-
-// Extract selected language
-function extractLanguage() {
-  const langSelectors = [
-    '[data-cy="lang-select"] .ant-select-selection-item',
-    '.lang-select .selected',
-    '[class*="language-select"] [class*="selected"]',
-    'button[data-state="selected"][role="option"]'
-  ];
-
-  for (const selector of langSelectors) {
-    const element = document.querySelector(selector);
-    if (element?.textContent) {
-      return element.textContent.trim();
-    }
-  }
-
-  // Fallback based on URL parameter
-  const urlParams = new URLSearchParams(window.location.search);
-  const lang = urlParams.get('lang');
-  if (lang) return lang;
-
-  return "JavaScript"; // Default fallback
-}
-
-// Handle accepted submission
-async function handleAcceptedSubmission(submissionData, tabId) {
+// Update extension badge
+async function updateBadge() {
   try {
-    const solution = {
-      id: `${submissionData.slug}-${submissionData.language}-${Date.now()}`,
-      title: submissionData.title,
-      slug: submissionData.slug,
-      difficulty: submissionData.difficulty,
-      description: submissionData.description,
-      code: submissionData.code,
-      language: submissionData.language,
-      timestamp: submissionData.timestamp
-    };
-
-    // Add to pending solutions
     const { pending = [] } = await chrome.storage.sync.get("pending");
-    pending.push(solution);
-    await chrome.storage.sync.set({ pending });
+    const text = pending.length > 0 ? pending.length.toString() : "";
+    chrome.action.setBadgeText({ text });
+    chrome.action.setBadgeBackgroundColor({ color: "#4f46e5" });
+  } catch (error) {
+    console.error("Error updating badge:", error);
+  }
+}
 
-    // Update stats
+// Update statistics
+async function updateStats(solution) {
+  try {
     const { stats = { streak: 0, counts: { easy: 0, medium: 0, hard: 0 }, recentSolves: [] } } = 
           await chrome.storage.sync.get("stats");
     
-    stats.counts[submissionData.difficulty.toLowerCase()]++;
-    stats.recentSolves.unshift(solution);
-    stats.recentSolves = stats.recentSolves.slice(0, 10); // Keep only 10 recent
+    // Update difficulty counts
+    const difficulty = solution.difficulty.toLowerCase();
+    if (stats.counts[difficulty] !== undefined) {
+      stats.counts[difficulty]++;
+    }
+    
+    // Add to recent solves
+    stats.recentSolves.unshift({
+      title: solution.title,
+      language: solution.lang,
+      difficulty: solution.difficulty,
+      timestamp: solution.timestamp
+    });
+    
+    // Keep only 10 recent solves
+    stats.recentSolves = stats.recentSolves.slice(0, 10);
     
     await chrome.storage.sync.set({ stats });
-
-    await updateBadge();
-    console.log("Added solution to pending:", solution.title);
   } catch (error) {
-    console.error("Error handling accepted submission:", error);
+    console.error("Error updating stats:", error);
   }
 }
 
@@ -243,6 +160,72 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       sendResponse({ error: "Unknown message type" });
   }
 });
+
+// Handle DOM-based captures (fallback only)
+async function handleSolvedFromDOM(payload, sendResponse) {
+  try {
+    // Only use DOM capture if no network capture happened recently
+    const timeSinceNetworkCapture = Date.now() - lastNetworkCapture;
+    if (timeSinceNetworkCapture < 10000) { // 10 seconds
+      console.warn(`[Leet2Git] Ignoring DOM capture - network capture happened ${timeSinceNetworkCapture}ms ago`);
+      sendResponse({ success: false, reason: "network_capture_recent" });
+      return;
+    }
+    
+    // Only process if enough time has passed since last DOM capture
+    const timeSinceLastDOM = Date.now() - lastDOMCapture;
+    if (timeSinceLastDOM < 5000) { // 5 seconds
+      console.warn(`[Leet2Git] DOM capture throttled - last capture ${timeSinceLastDOM}ms ago`);
+      sendResponse({ success: false, reason: "throttled" });
+      return;
+    }
+    
+    console.warn(`[Leet2Git] Using DOM fallback capture`);
+    
+    // Add missing fields for DOM capture
+    const solution = {
+      ...payload,
+      submissionId: payload.submissionId || `dom-${Date.now()}`,
+      tag: payload.tag || "Uncategorized",
+      capturedAt: new Date().toISOString(),
+      timestamp: payload.timestamp || Date.now()
+    };
+    
+    // Check for duplicates
+    const { pending = [] } = await chrome.storage.sync.get("pending");
+    const isDuplicate = pending.some(item => 
+      item.title === solution.title && 
+      item.lang === solution.language &&
+      Math.abs(item.timestamp - solution.timestamp) < 60000 // Within 1 minute
+    );
+    
+    if (isDuplicate) {
+      console.warn(`[Leet2Git] Duplicate DOM capture detected, skipping`);
+      sendResponse({ success: false, reason: "duplicate" });
+      return;
+    }
+    
+    // Add to pending
+    pending.push(solution);
+    await chrome.storage.sync.set({ pending });
+    
+    // Update stats
+    await updateStats(solution);
+    
+    // Update badge
+    await updateBadge();
+    
+    // Mark DOM capture time
+    lastDOMCapture = Date.now();
+    
+    console.warn(`[Leet2Git] DOM fallback capture successful: ${solution.title}`);
+    sendResponse({ success: true });
+    
+  } catch (error) {
+    console.error(`[Leet2Git] DOM capture error:`, error);
+    sendResponse({ error: error.message });
+  }
+}
 
 // Get home data for popup
 async function handleGetHomeData(sendResponse) {
@@ -288,7 +271,10 @@ async function handlePush(sendResponse) {
       return;
     }
 
-    // For now, just simulate success (real GitHub API would go here)
+    // For now, simulate success (actual GitHub API integration would go here)
+    console.info(`[Leet2Git] Simulating push of ${pending.length} solutions to GitHub`);
+    
+    // Clear pending solutions
     await chrome.storage.sync.set({ pending: [] });
     await updateBadge();
     
@@ -297,19 +283,6 @@ async function handlePush(sendResponse) {
       results: pending,
       message: `Successfully pushed ${pending.length} solutions!`
     });
-  } catch (error) {
-    sendResponse({ error: error.message });
-  }
-}
-
-// Handle solutions detected from DOM
-async function handleSolvedFromDOM(payload, sendResponse) {
-  try {
-    const { pending = [] } = await chrome.storage.sync.get("pending");
-    pending.push(payload);
-    await chrome.storage.sync.set({ pending });
-    await updateBadge();
-    sendResponse({ success: true });
   } catch (error) {
     sendResponse({ error: error.message });
   }

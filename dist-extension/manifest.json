@@ -24,6 +24,7 @@
     }
   ],
   "permissions": [
+    "identity",
     "storage",
     "activeTab",
     "tabs",
@@ -31,8 +32,8 @@
     "scripting"
   ],
   "host_permissions": [
-    "https://github.com/*",
+    "https://leetcode.com/*",
     "https://api.github.com/*",
-    "https://leetcode.com/*"
+    "https://github.com/*"
   ]
 }
