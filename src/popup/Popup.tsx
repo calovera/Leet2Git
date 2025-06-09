@@ -712,12 +712,13 @@ const Popup: React.FC = () => {
   return (
     <div style={{
       width: '380px',
-      height: '500px',
+      height: '600px',
       background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4c1d95 100%)',
       display: 'flex',
       flexDirection: 'column',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      position: 'relative'
+      position: 'relative',
+      overflow: 'hidden'
     }}>
       {/* Header */}
       <div style={{
@@ -793,7 +794,7 @@ const Popup: React.FC = () => {
         flex: 1,
         padding: '16px',
         overflowY: 'auto',
-        maxHeight: 'calc(500px - 120px)'
+        minHeight: 0
       }}>
         {activeTab === 'home' && homeData && (
           <HomeSection stats={homeData.stats} />
