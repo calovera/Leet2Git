@@ -385,6 +385,11 @@ const SettingsSection = ({ auth, config }: { auth: GitHubAuth | null, config: Re
 
       if (response.success) {
         setVerifyStatus(`✓ Connected as ${response.username}`);
+        // Update the local homeData state immediately
+        setHomeData(prev => ({
+          ...prev,
+          auth: response.auth
+        }));
         setTimeout(() => setVerifyStatus(''), 3000);
       } else {
         setVerifyStatus(`✗ ${response.error || 'Invalid token'}`);
@@ -693,23 +698,27 @@ const Popup: React.FC = () => {
       includeTestCases: false
     }
   });
-  useEffect(() => {
-    const fetchData = () => {
-      try {
-        chrome.runtime.sendMessage({ type: 'getHomeData' }, (response) => {
-          if (response && response.success && response.data) {
-            setHomeData(response.data);
-          } else {
-            console.error('Failed to fetch home data:', response);
-          }
-        });
-      } catch (error) {
-        console.error('Failed to fetch home data:', error);
-      }
-    };
+  const fetchData = () => {
+    try {
+      chrome.runtime.sendMessage({ type: 'getHomeData' }, (response) => {
+        if (response && response.success && response.data) {
+          setHomeData(response.data);
+        } else {
+          console.error('Failed to fetch home data:', response);
+        }
+      });
+    } catch (error) {
+      console.error('Failed to fetch home data:', error);
+    }
+  };
 
+  useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [activeTab]);
 
   return (
     <div style={{

@@ -38,6 +38,7 @@ async function updateBadge() {
   }
 }
 
+// Capture code from submit requests
 chrome.webRequest.onBeforeRequest.addListener(
   (details) => {
     if (details.method === 'POST' && details.requestBody && details.requestBody.raw) {
@@ -68,6 +69,7 @@ chrome.webRequest.onBeforeRequest.addListener(
   ["requestBody"]
 );
 
+// Track tab navigation
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.url && tab.url && tab.url.includes('leetcode.com/problems/')) {
     const match = tab.url.match(/\/problems\/([^\/]+)/);
@@ -96,6 +98,138 @@ chrome.runtime.onInstalled.addListener(() => {
 chrome.runtime.onStartup.addListener(() => {
   updateBadge();
 });
+
+// Process accepted submissions
+chrome.webRequest.onCompleted.addListener(async (details) => {
+  if (details.statusCode !== 200 || !details.tabId) return;
+  
+  const urlMatch = details.url.match(/\/submissions\/detail\/(\d+)\/check\//);
+  if (!urlMatch) return;
+  
+  const submissionId = urlMatch[1];
+  console.log(`[Leet2Git] Intercepted submission check: ${submissionId}`);
+  
+  try {
+    const response = await fetch(details.url, {
+      credentials: 'include',
+      headers: { 'Accept': 'application/json' }
+    });
+    
+    if (!response.ok) return;
+    
+    const data = await response.json();
+    
+    if (data.status_msg !== "Accepted") {
+      console.log(`[Leet2Git] Submission not accepted: ${data.status_msg}`);
+      return;
+    }
+    
+    const questionId = data.question_id || data.id;
+    const codeRecord = tempCodeStorage.get(questionId);
+    
+    if (!codeRecord) {
+      console.warn(`[Leet2Git] No code record found for question ${questionId}`);
+      return;
+    }
+    
+    const tabInfo = tabData.get(details.tabId);
+    const problemSlug = tabInfo?.slug || extractSlugFromData(data);
+    
+    if (!problemSlug) {
+      console.warn(`[Leet2Git] Could not determine problem slug`);
+      return;
+    }
+    
+    const metadata = getQuestionMeta(problemSlug);
+    
+    const solutionPayload = {
+      id: `${problemSlug}-${Date.now()}`,
+      submissionId: submissionId,
+      title: metadata?.title || toPascalCase(problemSlug),
+      slug: problemSlug,
+      difficulty: metadata?.difficulty || "Easy",
+      tag: metadata?.topicTags?.[0]?.name || metadata?.categoryTitle || "Algorithms",
+      code: codeRecord.code,
+      language: codeRecord.lang,
+      runtime: data.display_runtime || "N/A",
+      memory: data.status_memory || "N/A",
+      timestamp: Date.now()
+    };
+    
+    tempCodeStorage.delete(questionId);
+    
+    const storageResult = await chrome.storage.sync.get(['pending', 'solvedSlugs']);
+    const pending = storageResult.pending || [];
+    const solvedSlugs = new Set(storageResult.solvedSlugs || []);
+    
+    const recentKey = `${problemSlug}-${codeRecord.lang}`;
+    const now = Date.now();
+    const recentTimestamp = recentSubmissions.get(recentKey);
+    
+    if (recentTimestamp && (now - recentTimestamp) < 300000) {
+      console.log(`[Leet2Git] Ignoring duplicate submission within 5 minutes`);
+      return;
+    }
+    
+    pending.push(solutionPayload);
+    recentSubmissions.set(recentKey, now);
+    
+    if (!solvedSlugs.has(problemSlug)) {
+      solvedSlugs.add(problemSlug);
+      await updateStats(solutionPayload);
+      console.log(`[Leet2Git] Updated stats for new problem: ${problemSlug}`);
+    } else {
+      console.log(`[Leet2Git] Problem already solved, stats unchanged: ${problemSlug}`);
+    }
+    
+    await chrome.storage.sync.set({ 
+      pending,
+      solvedSlugs: Array.from(solvedSlugs)
+    });
+    
+    await updateBadge();
+    
+    console.log(`[Leet2Git] Successfully captured: ${solutionPayload.title} (${codeRecord.lang})`);
+    
+  } catch (error) {
+    console.error(`[Leet2Git] Error processing submission:`, error);
+  }
+}, { urls: ["https://leetcode.com/submissions/detail/*/check/"] });
+
+function extractSlugFromData(data) {
+  return data.titleSlug || data.question_slug || null;
+}
+
+async function updateStats(solution) {
+  try {
+    const { stats = {
+      streak: 0,
+      counts: { easy: 0, medium: 0, hard: 0 },
+      recentSolves: []
+    }} = await chrome.storage.sync.get('stats');
+    
+    const difficulty = solution.difficulty.toLowerCase();
+    if (stats.counts[difficulty] !== undefined) {
+      stats.counts[difficulty]++;
+      console.log(`[Leet2Git] Updated ${difficulty} count to ${stats.counts[difficulty]}`);
+    }
+    
+    stats.recentSolves.unshift({
+      id: solution.id,
+      title: solution.title,
+      language: solution.language,
+      difficulty: solution.difficulty,
+      timestamp: solution.timestamp
+    });
+    
+    stats.recentSolves = stats.recentSolves.slice(0, 10);
+    
+    await chrome.storage.sync.set({ stats });
+    console.log(`[Leet2Git] Stats updated for ${solution.title}`);
+  } catch (error) {
+    console.error("Error updating stats:", error);
+  }
+}
 
 async function handleAuthVerification(token, sendResponse) {
   try {
@@ -212,13 +346,20 @@ async function handlePush(sendResponse) {
       includeTestCases: false
     };
 
+    // Ensure repository exists first
+    await ensureRepositoryExists(authData.token, config);
+
     let successCount = 0;
+    const results = [];
+    
     for (const solution of pending) {
       try {
         await pushSolutionToGitHub(solution, authData, config);
         successCount++;
+        results.push({ success: true, title: solution.title });
       } catch (error) {
         console.error(`Failed to push ${solution.title}:`, error);
+        results.push({ success: false, title: solution.title, error: error.message });
       }
     }
 
@@ -228,6 +369,7 @@ async function handlePush(sendResponse) {
     sendResponse({ 
       success: true,
       count: successCount,
+      results: results,
       message: `Pushed ${successCount}/${pending.length} solutions`
     });
   } catch (error) {
@@ -236,35 +378,172 @@ async function handlePush(sendResponse) {
   }
 }
 
-async function pushSolutionToGitHub(solution, auth, config) {
-  const fileName = `${solution.title.replace(/[^a-zA-Z0-9]/g, '')}.py`;
-  const filePath = config.folderStructure === 'difficulty' ? solution.difficulty : 
-                   config.folderStructure === 'topic' ? (solution.tag || 'Algorithms') : '.';
+async function ensureRepositoryExists(token, config) {
+  const repoUrl = `https://api.github.com/repos/${config.owner}/${config.repo}`;
   
-  const content = `"""
-${solution.title}
+  try {
+    const response = await fetch(repoUrl, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/vnd.github.v3+json'
+      }
+    });
 
-Difficulty: ${solution.difficulty}
-Category: ${solution.tag}
-Runtime: ${solution.runtime}
-Memory: ${solution.memory}
-"""
+    if (response.ok) {
+      console.log(`Repository ${config.owner}/${config.repo} exists`);
+      return;
+    }
 
-${solution.code}
+    if (response.status === 404) {
+      console.log(`Creating repository ${config.owner}/${config.repo}`);
+      const createResponse = await fetch('https://api.github.com/user/repos', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: config.repo,
+          description: 'LeetCode solutions managed by Leet2Git extension',
+          private: config.private || false,
+          auto_init: true
+        })
+      });
+
+      if (!createResponse.ok) {
+        const errorData = await createResponse.json();
+        throw new Error(`Failed to create repository: ${errorData.message}`);
+      }
+
+      console.log(`Repository ${config.owner}/${config.repo} created successfully`);
+    } else {
+      throw new Error(`Failed to check repository: ${response.statusText}`);
+    }
+  } catch (error) {
+    console.error('Repository check/creation error:', error);
+    throw error;
+  }
+}
+
+async function pushSolutionToGitHub(solution, auth, config) {
+  const fileName = generateFileName(solution);
+  const filePath = generateFilePath(solution, config);
+  const content = generateFileContent(solution, config);
+  
+  console.log(`Pushing to GitHub: ${filePath}/${fileName}`);
+  
+  return await upsertFile({
+    token: auth.token,
+    owner: config.owner,
+    repo: config.repo,
+    branch: config.branch || 'main',
+    path: `${filePath}/${fileName}`,
+    content,
+    message: `Add solution: ${solution.title}`
+  });
+}
+
+function generateFileName(solution) {
+  const extension = getFileExtension(solution.language);
+  return `${solution.title.replace(/[^a-zA-Z0-9]/g, '')}.${extension}`;
+}
+
+function generateFilePath(solution, config) {
+  switch (config.folderStructure) {
+    case 'difficulty':
+      return solution.difficulty;
+    case 'topic':
+      return solution.tag || 'Algorithms';
+    case 'flat':
+    default:
+      return '.';
+  }
+}
+
+function generateFileContent(solution, config) {
+  let content = '';
+  
+  content += `/*
+ * @lc app=leetcode id=${solution.submissionId} lang=${solution.language}
+ *
+ * ${solution.title}
+ * 
+ * Difficulty: ${solution.difficulty}
+ * Category: ${solution.tag}
+ * Runtime: ${solution.runtime}
+ * Memory: ${solution.memory}
+ */
+
 `;
+  
+  content += solution.code;
+  
+  return content;
+}
 
-  const url = `https://api.github.com/repos/${config.owner}/${config.repo}/contents/${filePath}/${fileName}`;
+function getFileExtension(language) {
+  const extensionMap = {
+    'javascript': 'js',
+    'python': 'py',
+    'python3': 'py',
+    'java': 'java',
+    'c++': 'cpp',
+    'cpp': 'cpp',
+    'c': 'c',
+    'c#': 'cs',
+    'csharp': 'cs',
+    'ruby': 'rb',
+    'swift': 'swift',
+    'go': 'go',
+    'golang': 'go',
+    'scala': 'scala',
+    'kotlin': 'kt',
+    'rust': 'rs',
+    'php': 'php',
+    'typescript': 'ts',
+    'mysql': 'sql',
+    'postgresql': 'sql'
+  };
+  
+  const normalizedLang = (language || '').toLowerCase().trim();
+  return extensionMap[normalizedLang] || 'py';
+}
+
+async function upsertFile({ token, owner, repo, branch, path, content, message }) {
+  const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+  
+  let sha = null;
+  try {
+    const getResponse = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/vnd.github.v3+json'
+      }
+    });
+    
+    if (getResponse.ok) {
+      const fileData = await getResponse.json();
+      sha = fileData.sha;
+    }
+  } catch (error) {
+    // File doesn't exist, that's ok
+  }
   
   const body = {
-    message: `Add solution: ${solution.title}`,
+    message: message || `Update ${path}`,
     content: btoa(unescape(encodeURIComponent(content))),
-    branch: config.branch || 'main'
+    branch
   };
+  
+  if (sha) {
+    body.sha = sha;
+  }
   
   const response = await fetch(url, {
     method: 'PUT',
     headers: {
-      'Authorization': `Bearer ${auth.token}`,
+      'Authorization': `Bearer ${token}`,
       'Accept': 'application/vnd.github.v3+json',
       'Content-Type': 'application/json'
     },
@@ -275,6 +554,8 @@ ${solution.code}
     const errorData = await response.json();
     throw new Error(`GitHub API error: ${errorData.message || response.statusText}`);
   }
+  
+  return { success: true };
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
