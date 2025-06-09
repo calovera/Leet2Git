@@ -40,7 +40,14 @@
         <p>This should show the popup with beautiful styling:</p>
         
         <div class="popup-test">
-            <iframe src="dist-extension/src/popup/index.html"></iframe>
+            <iframe src="dist-extension/src/popup/index.html" sandbox="allow-scripts allow-same-origin"></iframe>
+        </div>
+        
+        <h2>Options Page Test</h2>
+        <p>Testing options page styling:</p>
+        
+        <div style="width: 100%; height: 600px; border: 2px solid #e5e7eb; border-radius: 8px; overflow: hidden; margin: 20px 0;">
+            <iframe src="dist-extension/src/options/index.html" style="width: 100%; height: 100%; border: none;" sandbox="allow-scripts allow-same-origin"></iframe>
         </div>
         
         <h2>Expected vs Actual</h2>
