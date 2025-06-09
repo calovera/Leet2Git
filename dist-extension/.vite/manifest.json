@@ -1,46 +1,59 @@
 {
   "../../../@crx/manifest": {
-    "file": "assets/crx-manifest.js-BlLkEqOL.js",
+    "file": "assets/crx-manifest.js.js",
     "name": "crx-manifest.js",
     "src": "../../../@crx/manifest",
     "isEntry": true
   },
-  "_client-nMGDAYsi.js": {
-    "file": "assets/client-nMGDAYsi.js",
+  "_client.js": {
+    "file": "assets/client.js",
     "name": "client"
   },
-  "content.ts-loader.js": {
-    "file": "assets/content.ts-loader-BNFZs2YS.js",
-    "src": "content.ts-loader.js"
-  },
-  "src/background.ts": {
-    "file": "assets/background.ts-CJAsnVue.js",
-    "name": "background.ts",
-    "src": "src/background.ts",
+  "background.js": {
+    "file": "background.js",
+    "name": "background",
+    "src": "background.js",
     "isEntry": true
   },
+  "content.ts-loader.js": {
+    "file": "assets/content.ts-loader.js",
+    "src": "content.ts-loader.js"
+  },
+  "leetcode-hook.ts-loader.js": {
+    "file": "assets/leetcode-hook.ts-loader.js",
+    "src": "leetcode-hook.ts-loader.js"
+  },
   "src/content.ts": {
-    "file": "assets/content.ts-BT97u3iC.js",
-    "name": "content.ts",
+    "file": "content.js",
+    "name": "content",
     "src": "src/content.ts",
     "isEntry": true
   },
-  "src/options/index.html": {
-    "file": "assets/index.html-KyK0VqDE.js",
-    "name": "index.html",
-    "src": "src/options/index.html",
+  "src/content/leetcode-hook.ts": {
+    "file": "leetcode-hook.js",
+    "name": "leetcodeHook",
+    "src": "src/content/leetcode-hook.ts",
+    "isEntry": true
+  },
+  "src/options/main.tsx": {
+    "file": "options/index.js",
+    "name": "options",
+    "src": "src/options/main.tsx",
     "isEntry": true,
     "imports": [
-      "_client-nMGDAYsi.js"
+      "_client.js"
     ]
   },
-  "src/popup/index.html": {
-    "file": "assets/index.html-BoH6zZMM.js",
-    "name": "index.html",
-    "src": "src/popup/index.html",
+  "src/popup/popup.tsx": {
+    "file": "popup/index.js",
+    "name": "popup",
+    "src": "src/popup/popup.tsx",
     "isEntry": true,
     "imports": [
-      "_client-nMGDAYsi.js"
+      "_client.js"
+    ],
+    "css": [
+      "assets/popup.css"
     ]
   }
 }

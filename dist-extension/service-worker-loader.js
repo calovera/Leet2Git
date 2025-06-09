@@ -1,1 +1,1 @@
-import './assets/background.ts-CJAsnVue.js';
+import './background.js';

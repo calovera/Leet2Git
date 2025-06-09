@@ -2,11 +2,11 @@
   "manifest_version": 3,
   "name": "Leet2Git",
   "version": "1.0.0",
-  "description": "Automatically sync your LeetCode solutions to GitHub",
+  "description": "Sync LeetCode solutions to GitHub repositories automatically",
   "icons": {
-    "16": "icons/icon16.png",
-    "32": "icons/icon32.png",
-    "128": "icons/icon128.png"
+    "16": "icons/16.png",
+    "32": "icons/32.png",
+    "128": "icons/128.png"
   },
   "background": {
     "service_worker": "service-worker-loader.js",
@@ -14,29 +14,33 @@
   },
   "action": {
     "default_popup": "src/popup/index.html",
-    "default_title": "Leet2Git"
+    "default_title": "Leet2Git - Sync LeetCode to GitHub"
   },
   "options_page": "src/options/index.html",
   "content_scripts": [
     {
       "js": [
-        "assets/content.ts-loader-BNFZs2YS.js"
+        "assets/content.ts-loader.js",
+        "assets/leetcode-hook.ts-loader.js"
       ],
       "matches": [
         "https://leetcode.com/*"
       ],
-      "run_at": "document_start"
+      "run_at": "document_end"
     }
   ],
   "permissions": [
+    "identity",
     "storage",
-    "webRequest",
+    "activeTab",
     "tabs",
-    "activeTab"
+    "webRequest",
+    "scripting"
   ],
   "host_permissions": [
-    "https://leetcode.com/*",
-    "https://api.github.com/*"
+    "https://github.com/*",
+    "https://api.github.com/*",
+    "https://leetcode.com/*"
   ],
   "web_accessible_resources": [
     {
@@ -44,7 +48,8 @@
         "https://leetcode.com/*"
       ],
       "resources": [
-        "assets/content.ts-BT97u3iC.js"
+        "content.js",
+        "leetcode-hook.js"
       ],
       "use_dynamic_url": true
     }
