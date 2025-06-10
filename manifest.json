@@ -21,7 +21,7 @@
     {
       "matches": ["https://leetcode.com/*"],
       "js": ["assets/content.ts-loader.1LRY1VgV.js"],
-      "run_at": "document_end",
+      "run_at": "document_start",
       "world": "MAIN"
     }
   ],

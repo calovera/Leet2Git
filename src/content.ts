@@ -1,9 +1,6 @@
-// Inject script into main world to intercept GraphQL
-const script = document.createElement('script');
-script.textContent = `
-console.log("Leet2Git injected script loaded");
+console.log("Leet2Git main world script loaded");
 
-// Override fetch in main world
+// Since we're running in MAIN world, we can directly override fetch
 const originalFetch = window.fetch;
 window.fetch = function(input, init) {
   let url;
@@ -43,16 +40,19 @@ window.fetch = function(input, init) {
               console.log('[Leet2Git] TopicTags found!', question.topicTags);
               console.log('[Leet2Git] First topic tag:', question.topicTags[0]?.name);
               
-              // Send to content script via custom event
-              window.dispatchEvent(new CustomEvent('leetcode-question-data', {
-                detail: {
+              // Send directly to background script from main world
+              chrome.runtime.sendMessage({
+                type: 'graphql_question_data',
+                data: {
                   slug: question.titleSlug,
                   title: question.title,
                   difficulty: question.difficulty,
                   categoryTitle: question.categoryTitle,
                   topicTags: question.topicTags
                 }
-              }));
+              }, (response) => {
+                console.log('[Leet2Git] Sent to background script, response:', response);
+              });
             } else {
               console.log('[Leet2Git] No question or topicTags in response');
             }
@@ -69,21 +69,3 @@ window.fetch = function(input, init) {
 };
 
 console.log('[Leet2Git] Main world fetch override installed');
-`;
-
-document.documentElement.appendChild(script);
-script.remove();
-
-// Listen for the custom event from the injected script
-window.addEventListener('leetcode-question-data', (event: any) => {
-  console.log('[Leet2Git] Received question data from main world:', event.detail);
-  
-  chrome.runtime.sendMessage({
-    type: 'graphql_question_data',
-    data: event.detail
-  }, (response) => {
-    console.log('[Leet2Git] Sent to background script, response:', response);
-  });
-});
-
-console.log('[Leet2Git] Content script loaded and event listener set up');
