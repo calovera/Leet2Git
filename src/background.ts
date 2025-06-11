@@ -7,14 +7,6 @@ const tempCodeStorage = new Map<string, any>();
 const recentSubmissions = new Map<string, number>();
 
 // Helper functions
-function cacheQuestionMeta(meta) {
-  questionMetaStorage.set(meta.slug, meta);
-  console.log(`[Leet2Git] Question meta cached: ${meta.slug}`);
-}
-
-function getQuestionMeta(slug) {
-  return questionMetaStorage.get(slug) || null;
-}
 
 function toPascalCase(str) {
   return str.split('-').map(word => 
@@ -116,8 +108,8 @@ chrome.webRequest.onCompleted.addListener(async (details) => {
   setTimeout(async () => {
     try {
       // Check if we have recent code capture (within 5 minutes)
-      let recentCodeRecord = null;
-      let questionId = null;
+      let recentCodeRecord: any = null;
+      let questionId: string | null = null;
       
       for (const [qId, record] of tempCodeStorage.entries()) {
         if (record && record.timestamp > Date.now() - 300000) { // Within last 5 minutes
@@ -182,8 +174,8 @@ async function processAcceptedSubmission(submissionId, tabId, data = null) {
     console.log(`[Leet2Git] Processing accepted submission: ${submissionId}`);
     
     // Find the associated code record
-    let codeRecord = null;
-    let questionId = null;
+    let codeRecord: any = null;
+    let questionId: string | null = null;
     
     // Try to find code by iterating through stored codes
     for (const [qId, record] of tempCodeStorage.entries()) {
@@ -205,40 +197,25 @@ async function processAcceptedSubmission(submissionId, tabId, data = null) {
       return;
     }
     
-    const metadata = getQuestionMeta(tabInfo.slug);
-    
-    // Fix: Properly prioritize topicTags over categoryTitle
-    let tag = "Algorithms"; // Default fallback
-    
-    console.log(`[Leet2Git] DEBUG - Processing metadata for ${tabInfo.slug}:`, JSON.stringify(metadata, null, 2));
-    
-    if (metadata?.topicTags && Array.isArray(metadata.topicTags) && metadata.topicTags.length > 0 && metadata.topicTags[0]?.name) {
-      tag = metadata.topicTags[0].name;
-      console.log(`[Leet2Git] SUCCESS - Using topicTag: ${tag}`);
-    } else if (metadata?.categoryTitle) {
-      tag = metadata.categoryTitle;
-      console.log(`[Leet2Git] FALLBACK - Using categoryTitle: ${tag}`);
-    } else {
-      console.log(`[Leet2Git] DEFAULT - Using default tag: ${tag}`);
-    }
-    
-    console.log(`[Leet2Git] FINAL TAG SELECTED: ${tag}`);
+    // Default values - user will set these in the Push tab
+    const defaultDifficulty = "Level"; // User must select
+    const defaultFolder = "Problems"; // Default folder name
     
     const solutionPayload = {
       id: `${tabInfo.slug}-${Date.now()}`,
       submissionId: submissionId,
-      title: metadata?.title || toPascalCase(tabInfo.slug),
+      title: toPascalCase(tabInfo.slug),
       slug: tabInfo.slug,
-      difficulty: metadata?.difficulty || "Easy",
-      tag: tag,
+      difficulty: defaultDifficulty, // User will set this in Push tab
+      folderPath: defaultFolder, // User will set this in Push tab
       code: codeRecord.code,
       language: codeRecord.lang,
-      runtime: "N/A", // Will be populated if available
-      memory: "N/A",   // Will be populated if available
+      runtime: "N/A",
+      memory: "N/A",
       timestamp: Date.now()
     };
     
-    console.log(`[Leet2Git] Solution payload created with tag: ${tag} for ${tabInfo.slug}`);
+    console.log(`[Leet2Git] Solution payload created for ${tabInfo.slug}`);
     
     tempCodeStorage.delete(questionId);
     
