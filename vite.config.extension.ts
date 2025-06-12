@@ -6,7 +6,7 @@ import path from "path";
 const manifest = {
   manifest_version: 3,
   name: "Leet2Git",
-  version: "1.0.0",
+  version: "1.0.1",
   description: "Automatically sync your LeetCode solutions to GitHub",
   icons: {
     "16": "icon16.png",
