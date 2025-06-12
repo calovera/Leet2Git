@@ -550,228 +550,152 @@ const PushSection = ({
               <div
                 key={item.id || index}
                 style={{
-                  background: "linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%)",
-                  backdropFilter: "blur(20px)",
-                  borderRadius: "16px",
-                  border: "1px solid rgba(255, 255, 255, 0.12)",
+                  background: "rgba(255, 255, 255, 0.05)",
+                  borderRadius: "10px",
+                  border: "1px solid rgba(255, 255, 255, 0.08)",
                   overflow: "hidden",
-                  transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-                  boxShadow: "0 8px 32px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.1)",
                 }}
               >
-                <div style={{ padding: "20px" }}>
-                  {/* Header */}
+                <div
+                  style={{
+                    padding: "16px",
+                  }}
+                >
+                  {/* Title and Action Buttons */}
                   <div
                     style={{
                       display: "flex",
                       justifyContent: "space-between",
                       alignItems: "flex-start",
-                      marginBottom: "20px",
+                      marginBottom: "12px",
                     }}
                   >
-                    <div style={{ flex: 1 }}>
-                      <h3
-                        style={{
-                          fontSize: "16px",
-                          fontWeight: "600",
-                          color: "#ffffff",
-                          margin: "0 0 8px 0",
-                          letterSpacing: "-0.025em",
-                          lineHeight: "1.3",
-                        }}
-                      >
-                        {item.title}
-                      </h3>
-                      <div
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          background: "rgba(139, 92, 246, 0.15)",
-                          border: "1px solid rgba(139, 92, 246, 0.3)",
-                          borderRadius: "8px",
-                          padding: "4px 12px",
-                        }}
-                      >
-                        <span
-                          style={{
-                            fontSize: "12px",
-                            color: "#a78bfa",
-                            fontWeight: "500",
-                            fontFamily: "Monaco, 'Cascadia Code', monospace",
-                          }}
-                        >
-                          {item.language}
-                        </span>
-                      </div>
+                    <div
+                      style={{
+                        fontSize: "14px",
+                        fontWeight: "500",
+                        color: "#ffffff",
+                        lineHeight: "1.3",
+                      }}
+                    >
+                      {item.title}
                     </div>
-                    
-                    <div style={{ display: "flex", gap: "8px", marginLeft: "16px" }}>
+                    <div style={{ display: "flex", gap: "6px", flexShrink: 0 }}>
                       <button
                         onClick={() => toggleCodePreview(item.id || `${index}`)}
                         style={{
-                          background: expandedItems.has(item.id || `${index}`) 
-                            ? "rgba(139, 92, 246, 0.3)" 
-                            : "rgba(255, 255, 255, 0.08)",
+                          background: "rgba(139, 92, 246, 0.3)",
                           color: "#ffffff",
-                          border: "1px solid rgba(255, 255, 255, 0.15)",
-                          borderRadius: "10px",
-                          padding: "8px 14px",
-                          fontSize: "12px",
-                          fontWeight: "500",
+                          border: "none",
+                          borderRadius: "6px",
+                          padding: "6px 12px",
+                          fontSize: "11px",
                           cursor: "pointer",
-                          transition: "all 0.2s ease",
-                          backdropFilter: "blur(10px)",
+                          fontWeight: "500",
                         }}
                       >
-                        {expandedItems.has(item.id || `${index}`) ? "Hide Code" : "View Code"}
+                        {expandedItems.has(item.id || `${index}`)
+                          ? "Hide"
+                          : "Code"}
                       </button>
                       <button
-                        onClick={() => handleDeleteSubmission(item.id || `${index}`)}
+                        onClick={() =>
+                          handleDeleteSubmission(item.id || `${index}`)
+                        }
                         style={{
-                          background: "rgba(239, 68, 68, 0.15)",
-                          color: "#fca5a5",
-                          border: "1px solid rgba(239, 68, 68, 0.3)",
-                          borderRadius: "10px",
-                          padding: "8px 12px",
-                          fontSize: "12px",
-                          fontWeight: "500",
+                          background: "rgba(239, 68, 68, 0.3)",
+                          color: "#ffffff",
+                          border: "none",
+                          borderRadius: "6px",
+                          padding: "6px 12px",
+                          fontSize: "11px",
                           cursor: "pointer",
-                          transition: "all 0.2s ease",
-                          backdropFilter: "blur(10px)",
+                          fontWeight: "500",
                         }}
-                        title="Delete submission"
+                        title="Delete this submission"
                       >
                         ✕
                       </button>
                     </div>
                   </div>
 
-                  {/* Configuration Grid */}
+                  {/* Difficulty and Language Tags */}
                   <div
                     style={{
-                      display: "grid",
-                      gridTemplateColumns: "140px 1fr",
-                      gap: "16px",
-                      alignItems: "start",
-                      marginBottom: "16px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      marginBottom: "12px",
+                      flexWrap: "wrap",
                     }}
                   >
-                    {/* Difficulty Selector */}
-                    <div>
-                      <label
-                        style={{
-                          display: "block",
-                          fontSize: "11px",
-                          fontWeight: "600",
-                          color: "rgba(255, 255, 255, 0.7)",
-                          marginBottom: "6px",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.5px",
-                        }}
-                      >
-                        Difficulty
-                      </label>
-                      <select
-                        value={getSolutionSetting(item.id || `${index}`, 'difficulty', item.difficulty || 'Level')}
-                        onChange={(e) => updateSolutionSetting(item.id || `${index}`, 'difficulty', e.target.value)}
-                        style={{
-                          width: "100%",
-                          fontSize: "12px",
-                          padding: "10px 12px",
-                          borderRadius: "10px",
-                          background: getSolutionSetting(item.id || `${index}`, 'difficulty', item.difficulty || 'Level') === 'Level' 
-                            ? "rgba(107, 114, 128, 0.8)" 
-                            : getSolutionSetting(item.id || `${index}`, 'difficulty', item.difficulty || 'Level') === "Easy"
-                            ? "rgba(16, 185, 129, 0.8)"
+                    <select
+                      value={getSolutionSetting(item.id || `${index}`, 'difficulty', item.difficulty || 'Level')}
+                      onChange={(e) => updateSolutionSetting(item.id || `${index}`, 'difficulty', e.target.value)}
+                      style={{
+                        fontSize: "11px",
+                        padding: "4px 8px",
+                        borderRadius: "6px",
+                        background: getSolutionSetting(item.id || `${index}`, 'difficulty', item.difficulty || 'Level') === 'Level' 
+                          ? "#6b7280" 
+                          : getSolutionSetting(item.id || `${index}`, 'difficulty', item.difficulty || 'Level') === "Easy"
+                            ? "#10b981"
                             : getSolutionSetting(item.id || `${index}`, 'difficulty', item.difficulty || 'Level') === "Medium"
-                            ? "rgba(245, 158, 11, 0.8)"
-                            : "rgba(239, 68, 68, 0.8)",
-                          color: "#ffffff",
-                          fontWeight: "600",
-                          border: "1px solid rgba(255, 255, 255, 0.2)",
-                          cursor: "pointer",
-                          outline: "none",
-                          transition: "all 0.2s ease",
-                        }}
-                      >
-                        <option value="Level" style={{color: "#000", background: "#1a1a1a"}}>Select Level</option>
-                        <option value="Easy" style={{color: "#000", background: "#1a1a1a"}}>Easy</option>
-                        <option value="Medium" style={{color: "#000", background: "#1a1a1a"}}>Medium</option>
-                        <option value="Hard" style={{color: "#000", background: "#1a1a1a"}}>Hard</option>
-                      </select>
-                    </div>
-
-                    {/* Folder Path */}
-                    <div>
-                      <label
-                        style={{
-                          display: "block",
-                          fontSize: "11px",
-                          fontWeight: "600",
-                          color: "rgba(255, 255, 255, 0.7)",
-                          marginBottom: "6px",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.5px",
-                        }}
-                      >
-                        Folder Path
-                      </label>
-                      <input
-                        type="text"
-                        value={getSolutionSetting(item.id || `${index}`, 'folderPath', item.folderPath || 'Problems')}
-                        onChange={(e) => updateSolutionSetting(item.id || `${index}`, 'folderPath', e.target.value)}
-                        placeholder="e.g., Problems/Arrays"
-                        style={{
-                          width: "100%",
-                          fontSize: "12px",
-                          background: "rgba(255, 255, 255, 0.08)",
-                          border: "1px solid rgba(255, 255, 255, 0.2)",
-                          borderRadius: "10px",
-                          padding: "10px 12px",
-                          color: "#ffffff",
-                          outline: "none",
-                          transition: "all 0.2s ease",
-                          fontFamily: "inherit",
-                        }}
-                      />
-                    </div>
+                            ? "#f59e0b"
+                            : "#ef4444",
+                        color: "#ffffff",
+                        fontWeight: "500",
+                        border: "none",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <option value="Level" style={{color: "#000"}}>Level</option>
+                      <option value="Easy" style={{color: "#000"}}>Easy</option>
+                      <option value="Medium" style={{color: "#000"}}>Medium</option>
+                      <option value="Hard" style={{color: "#000"}}>Hard</option>
+                    </select>
+                    <span
+                      style={{
+                        fontSize: "11px",
+                        color: "rgba(255, 255, 255, 0.8)",
+                        background: `rgba(139, 92, 246, 0.2)`,
+                        padding: "4px 8px",
+                        borderRadius: "6px",
+                        fontWeight: "500",
+                      }}
+                    >
+                      {item.language}
+                    </span>
                   </div>
 
-                  {/* GitHub Path Preview */}
+                  {/* Folder Path */}
                   <div
                     style={{
-                      background: "rgba(0, 0, 0, 0.25)",
-                      border: "1px solid rgba(255, 255, 255, 0.1)",
-                      borderRadius: "10px",
-                      padding: "12px 16px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
                     }}
                   >
-                    <div
+                    <span style={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.5)" }}>📁</span>
+                    <input
+                      type="text"
+                      value={getSolutionSetting(item.id || `${index}`, 'folderPath', item.folderPath || 'Problems')}
+                      onChange={(e) => updateSolutionSetting(item.id || `${index}`, 'folderPath', e.target.value)}
+                      placeholder="Folder path"
                       style={{
-                        fontSize: "10px",
-                        fontWeight: "600",
-                        color: "rgba(255, 255, 255, 0.5)",
-                        marginBottom: "6px",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.5px",
+                        fontSize: "11px",
+                        background: "rgba(255, 255, 255, 0.1)",
+                        border: "1px solid rgba(255, 255, 255, 0.2)",
+                        borderRadius: "6px",
+                        padding: "6px 8px",
+                        color: "#ffffff",
+                        flex: 1,
+                        outline: "none",
                       }}
-                    >
-                      GitHub Path Preview
-                    </div>
-                    <div
-                      style={{
-                        fontSize: "12px",
-                        color: "#a5b4fc",
-                        fontFamily: "Monaco, 'Cascadia Code', 'Roboto Mono', monospace",
-                        wordBreak: "break-all",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "6px",
-                      }}
-                    >
-                      <span style={{ color: "rgba(255, 255, 255, 0.4)" }}>📁</span>
-                      {getSolutionSetting(item.id || `${index}`, 'folderPath', item.folderPath || 'Problems')}/{item.title.replace(/[^a-zA-Z0-9]/g, '')}.{getFileExtension(item.language)}
-                    </div>
+                    />
+                    <span style={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.5)" }}>
+                      /{item.title.replace(/[^a-zA-Z0-9]/g, '')}.{getFileExtension(item.language)}
+                    </span>
                   </div>
                 </div>
 
