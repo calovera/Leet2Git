@@ -10,17 +10,17 @@
     "name": "client"
   },
   "content.ts-loader.js": {
-    "file": "assets/content.ts-loader.DD3sGsZV.js",
+    "file": "assets/content.ts-loader.XDsI1XNn.js",
     "src": "content.ts-loader.js"
   },
   "src/background.ts": {
-    "file": "assets/background.ts.Cf1l2jt_.js",
+    "file": "assets/background.ts.CdpdeNQJ.js",
     "name": "background.ts",
     "src": "src/background.ts",
     "isEntry": true
   },
   "src/content.ts": {
-    "file": "assets/content.ts.DMXJchtY.js",
+    "file": "assets/content.ts.D6DiphWv.js",
     "name": "content.ts",
     "src": "src/content.ts",
     "isEntry": true
@@ -35,7 +35,7 @@
     ]
   },
   "src/popup/index.html": {
-    "file": "assets/index.html.BnONtpLB.js",
+    "file": "assets/index.html.C40rVYgG.js",
     "name": "index.html",
     "src": "src/popup/index.html",
     "isEntry": true,

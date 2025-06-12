@@ -510,21 +510,9 @@ function generateFileName(solution) {
 }
 
 function generateFilePath(solution, config) {
-  console.log(`[Leet2Git] Generating file path for ${solution.title} with tag: ${solution.tag}, folderStructure: ${config.folderStructure}`);
-  
-  switch (config.folderStructure) {
-    case 'difficulty':
-      console.log(`[Leet2Git] Using difficulty folder: ${solution.difficulty}`);
-      return solution.difficulty;
-    case 'topic':
-      const folder = solution.tag || 'Algorithms';
-      console.log(`[Leet2Git] Using topic folder: ${folder}`);
-      return folder;
-    case 'flat':
-    default:
-      console.log(`[Leet2Git] Using flat structure`);
-      return '.';
-  }
+  const folderPath = solution.folderPath || 'Problems';
+  console.log(`[Leet2Git] Using user-selected folder path: ${folderPath}`);
+  return folderPath;
 }
 
 function generateFileContent(solution, config) {

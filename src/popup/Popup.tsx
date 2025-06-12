@@ -23,6 +23,7 @@ interface PendingItem {
   description?: string;
   submissionId: string;
   tag?: string;
+  folderPath?: string;
 }
 
 // Helper function to get file extension based on language
@@ -584,25 +585,34 @@ const PushSection = ({
                         display: "flex",
                         alignItems: "center",
                         gap: "8px",
+                        marginBottom: "8px",
                       }}
                     >
-                      <span
+                      <select
+                        value={getSolutionSetting(item.id || `${index}`, 'difficulty', item.difficulty || 'Level')}
+                        onChange={(e) => updateSolutionSetting(item.id || `${index}`, 'difficulty', e.target.value)}
                         style={{
                           fontSize: "10px",
                           padding: "2px 6px",
                           borderRadius: "4px",
-                          background:
-                            item.difficulty === "Easy"
+                          background: getSolutionSetting(item.id || `${index}`, 'difficulty', item.difficulty || 'Level') === 'Level' 
+                            ? "#6b7280" 
+                            : getSolutionSetting(item.id || `${index}`, 'difficulty', item.difficulty || 'Level') === "Easy"
                               ? "#10b981"
-                              : item.difficulty === "Medium"
+                              : getSolutionSetting(item.id || `${index}`, 'difficulty', item.difficulty || 'Level') === "Medium"
                               ? "#f59e0b"
                               : "#ef4444",
                           color: "#ffffff",
                           fontWeight: "500",
+                          border: "none",
+                          cursor: "pointer",
                         }}
                       >
-                        {item.difficulty}
-                      </span>
+                        <option value="Level" style={{color: "#000"}}>Level</option>
+                        <option value="Easy" style={{color: "#000"}}>Easy</option>
+                        <option value="Medium" style={{color: "#000"}}>Medium</option>
+                        <option value="Hard" style={{color: "#000"}}>Hard</option>
+                      </select>
                       <span
                         style={{
                           fontSize: "11px",
@@ -617,13 +627,31 @@ const PushSection = ({
                     </div>
                     <div
                       style={{
-                        fontSize: "10px",
-                        color: "rgba(255, 255, 255, 0.5)",
-                        marginTop: "4px",
-                        fontFamily: "monospace",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                        marginBottom: "4px",
                       }}
                     >
-                      📁 {item.tag || "Algorithms"}/{item.title.replace(/[^a-zA-Z0-9]/g, '')}.{getFileExtension(item.language)}
+                      <span style={{ fontSize: "10px", color: "rgba(255, 255, 255, 0.5)" }}>📁</span>
+                      <input
+                        type="text"
+                        value={getSolutionSetting(item.id || `${index}`, 'folderPath', item.folderPath || 'Problems')}
+                        onChange={(e) => updateSolutionSetting(item.id || `${index}`, 'folderPath', e.target.value)}
+                        placeholder="Folder path"
+                        style={{
+                          fontSize: "10px",
+                          background: "rgba(255, 255, 255, 0.1)",
+                          border: "1px solid rgba(255, 255, 255, 0.2)",
+                          borderRadius: "3px",
+                          padding: "2px 4px",
+                          color: "#ffffff",
+                          flex: 1,
+                        }}
+                      />
+                      <span style={{ fontSize: "10px", color: "rgba(255, 255, 255, 0.5)" }}>
+                        /{item.title.replace(/[^a-zA-Z0-9]/g, '')}.{getFileExtension(item.language)}
+                      </span>
                     </div>
                   </div>
                   <div style={{ display: "flex", gap: "4px" }}>
@@ -1145,45 +1173,7 @@ const SettingsSection = ({
             </label>
           </div>
 
-          <div>
-            <div
-              style={{
-                fontSize: "12px",
-                color: "rgba(255, 255, 255, 0.7)",
-                marginBottom: "4px",
-              }}
-            >
-              Folder Structure:
-            </div>
-            <select
-              value={folderStructure}
-              onChange={(e) =>
-                setFolderStructure(
-                  e.target.value as "difficulty" | "topic" | "flat"
-                )
-              }
-              style={{
-                width: "100%",
-                padding: "8px 12px",
-                background: "rgba(255, 255, 255, 0.08)",
-                border: "1px solid rgba(255, 255, 255, 0.15)",
-                borderRadius: "6px",
-                color: "#ffffff",
-                fontSize: "12px",
-                outline: "none",
-              }}
-            >
-              <option value="topic" style={{ background: "#1a1a1a" }}>
-                By Topic
-              </option>
-              <option value="difficulty" style={{ background: "#1a1a1a" }}>
-                By Difficulty
-              </option>
-              <option value="flat" style={{ background: "#1a1a1a" }}>
-                Flat Structure
-              </option>
-            </select>
-          </div>
+
 
           <button
             onClick={handleSaveConfig}
