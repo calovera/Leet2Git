@@ -455,7 +455,7 @@ const PushSection = ({
   const isDisabled = isPushing || !auth?.connected;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
       {/* Sync Button */}
       <button
         onClick={handleSync}
@@ -508,7 +508,7 @@ const PushSection = ({
           background: "rgba(255, 255, 255, 0.08)",
           backdropFilter: "blur(12px)",
           borderRadius: "12px",
-          padding: "16px",
+          padding: "20px",
           border: "1px solid rgba(255, 255, 255, 0.12)",
         }}
       >
@@ -517,7 +517,7 @@ const PushSection = ({
             fontSize: "14px",
             fontWeight: "600",
             color: "#ffffff",
-            marginBottom: "12px",
+            marginBottom: "16px",
           }}
         >
           Pending Solutions ({pending.length})
@@ -527,7 +527,7 @@ const PushSection = ({
           <div
             style={{
               textAlign: "center",
-              padding: "20px",
+              padding: "24px",
               color: "rgba(255, 255, 255, 0.6)",
               fontSize: "13px",
             }}
@@ -541,8 +541,8 @@ const PushSection = ({
             style={{
               display: "flex",
               flexDirection: "column",
-              gap: "8px",
-              maxHeight: "200px",
+              gap: "12px",
+              maxHeight: "280px",
               overflowY: "auto",
             }}
           >
@@ -551,149 +551,159 @@ const PushSection = ({
                 key={item.id || index}
                 style={{
                   background: "rgba(255, 255, 255, 0.05)",
-                  borderRadius: "8px",
+                  borderRadius: "10px",
                   border: "1px solid rgba(255, 255, 255, 0.08)",
+                  overflow: "hidden",
                 }}
               >
                 <div
                   style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    padding: "8px 12px",
+                    padding: "16px",
                   }}
                 >
+                  {/* Title and Action Buttons */}
                   <div
                     style={{
                       display: "flex",
-                      flexDirection: "column",
-                      gap: "2px",
-                      flex: 1,
+                      justifyContent: "space-between",
+                      alignItems: "flex-start",
+                      marginBottom: "12px",
                     }}
                   >
                     <div
                       style={{
-                        fontSize: "13px",
+                        fontSize: "14px",
                         fontWeight: "500",
                         color: "#ffffff",
+                        lineHeight: "1.3",
                       }}
                     >
                       {item.title}
                     </div>
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "8px",
-                        marginBottom: "8px",
-                      }}
-                    >
-                      <select
-                        value={getSolutionSetting(item.id || `${index}`, 'difficulty', item.difficulty || 'Level')}
-                        onChange={(e) => updateSolutionSetting(item.id || `${index}`, 'difficulty', e.target.value)}
+                    <div style={{ display: "flex", gap: "6px", flexShrink: 0 }}>
+                      <button
+                        onClick={() => toggleCodePreview(item.id || `${index}`)}
                         style={{
-                          fontSize: "10px",
-                          padding: "2px 6px",
-                          borderRadius: "4px",
-                          background: getSolutionSetting(item.id || `${index}`, 'difficulty', item.difficulty || 'Level') === 'Level' 
-                            ? "#6b7280" 
-                            : getSolutionSetting(item.id || `${index}`, 'difficulty', item.difficulty || 'Level') === "Easy"
-                              ? "#10b981"
-                              : getSolutionSetting(item.id || `${index}`, 'difficulty', item.difficulty || 'Level') === "Medium"
-                              ? "#f59e0b"
-                              : "#ef4444",
+                          background: "rgba(139, 92, 246, 0.3)",
                           color: "#ffffff",
-                          fontWeight: "500",
                           border: "none",
-                          cursor: "pointer",
-                        }}
-                      >
-                        <option value="Level" style={{color: "#000"}}>Level</option>
-                        <option value="Easy" style={{color: "#000"}}>Easy</option>
-                        <option value="Medium" style={{color: "#000"}}>Medium</option>
-                        <option value="Hard" style={{color: "#000"}}>Hard</option>
-                      </select>
-                      <span
-                        style={{
+                          borderRadius: "6px",
+                          padding: "6px 12px",
                           fontSize: "11px",
-                          color: "rgba(255, 255, 255, 0.7)",
-                          background: `rgba(139, 92, 246, 0.2)`,
-                          padding: "1px 4px",
-                          borderRadius: "3px",
+                          cursor: "pointer",
+                          fontWeight: "500",
                         }}
                       >
-                        {item.language}
-                      </span>
-                    </div>
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "4px",
-                        marginBottom: "4px",
-                      }}
-                    >
-                      <span style={{ fontSize: "10px", color: "rgba(255, 255, 255, 0.5)" }}>📁</span>
-                      <input
-                        type="text"
-                        value={getSolutionSetting(item.id || `${index}`, 'folderPath', item.folderPath || 'Problems')}
-                        onChange={(e) => updateSolutionSetting(item.id || `${index}`, 'folderPath', e.target.value)}
-                        placeholder="Folder path"
+                        {expandedItems.has(item.id || `${index}`)
+                          ? "Hide"
+                          : "Code"}
+                      </button>
+                      <button
+                        onClick={() =>
+                          handleDeleteSubmission(item.id || `${index}`)
+                        }
                         style={{
-                          fontSize: "10px",
-                          background: "rgba(255, 255, 255, 0.1)",
-                          border: "1px solid rgba(255, 255, 255, 0.2)",
-                          borderRadius: "3px",
-                          padding: "2px 4px",
+                          background: "rgba(239, 68, 68, 0.3)",
                           color: "#ffffff",
-                          flex: 1,
+                          border: "none",
+                          borderRadius: "6px",
+                          padding: "6px 12px",
+                          fontSize: "11px",
+                          cursor: "pointer",
+                          fontWeight: "500",
                         }}
-                      />
-                      <span style={{ fontSize: "10px", color: "rgba(255, 255, 255, 0.5)" }}>
-                        /{item.title.replace(/[^a-zA-Z0-9]/g, '')}.{getFileExtension(item.language)}
-                      </span>
+                        title="Delete this submission"
+                      >
+                        ✕
+                      </button>
                     </div>
                   </div>
-                  <div style={{ display: "flex", gap: "4px" }}>
-                    <button
-                      onClick={() => toggleCodePreview(item.id || `${index}`)}
+
+                  {/* Difficulty and Language Tags */}
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      marginBottom: "12px",
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <select
+                      value={getSolutionSetting(item.id || `${index}`, 'difficulty', item.difficulty || 'Level')}
+                      onChange={(e) => updateSolutionSetting(item.id || `${index}`, 'difficulty', e.target.value)}
                       style={{
-                        background: "rgba(139, 92, 246, 0.3)",
-                        color: "#ffffff",
-                        border: "none",
-                        borderRadius: "4px",
+                        fontSize: "11px",
                         padding: "4px 8px",
-                        fontSize: "10px",
+                        borderRadius: "6px",
+                        background: getSolutionSetting(item.id || `${index}`, 'difficulty', item.difficulty || 'Level') === 'Level' 
+                          ? "#6b7280" 
+                          : getSolutionSetting(item.id || `${index}`, 'difficulty', item.difficulty || 'Level') === "Easy"
+                            ? "#10b981"
+                            : getSolutionSetting(item.id || `${index}`, 'difficulty', item.difficulty || 'Level') === "Medium"
+                            ? "#f59e0b"
+                            : "#ef4444",
+                        color: "#ffffff",
+                        fontWeight: "500",
+                        border: "none",
                         cursor: "pointer",
                       }}
                     >
-                      {expandedItems.has(item.id || `${index}`)
-                        ? "Hide"
-                        : "Code"}
-                    </button>
-                    <button
-                      onClick={() =>
-                        handleDeleteSubmission(item.id || `${index}`)
-                      }
+                      <option value="Level" style={{color: "#000"}}>Level</option>
+                      <option value="Easy" style={{color: "#000"}}>Easy</option>
+                      <option value="Medium" style={{color: "#000"}}>Medium</option>
+                      <option value="Hard" style={{color: "#000"}}>Hard</option>
+                    </select>
+                    <span
                       style={{
-                        background: "rgba(239, 68, 68, 0.3)",
-                        color: "#ffffff",
-                        border: "none",
-                        borderRadius: "4px",
+                        fontSize: "11px",
+                        color: "rgba(255, 255, 255, 0.8)",
+                        background: `rgba(139, 92, 246, 0.2)`,
                         padding: "4px 8px",
-                        fontSize: "10px",
-                        cursor: "pointer",
+                        borderRadius: "6px",
+                        fontWeight: "500",
                       }}
-                      title="Delete this submission"
                     >
-                      ✕
-                    </button>
+                      {item.language}
+                    </span>
+                  </div>
+
+                  {/* Folder Path */}
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                    }}
+                  >
+                    <span style={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.5)" }}>📁</span>
+                    <input
+                      type="text"
+                      value={getSolutionSetting(item.id || `${index}`, 'folderPath', item.folderPath || 'Problems')}
+                      onChange={(e) => updateSolutionSetting(item.id || `${index}`, 'folderPath', e.target.value)}
+                      placeholder="Folder path"
+                      style={{
+                        fontSize: "11px",
+                        background: "rgba(255, 255, 255, 0.1)",
+                        border: "1px solid rgba(255, 255, 255, 0.2)",
+                        borderRadius: "6px",
+                        padding: "6px 8px",
+                        color: "#ffffff",
+                        flex: 1,
+                        outline: "none",
+                      }}
+                    />
+                    <span style={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.5)" }}>
+                      /{item.title.replace(/[^a-zA-Z0-9]/g, '')}.{getFileExtension(item.language)}
+                    </span>
                   </div>
                 </div>
+
+                {/* Code Preview */}
                 {expandedItems.has(item.id || `${index}`) && (
                   <div
                     style={{
-                      padding: "8px 12px",
+                      padding: "16px",
                       borderTop: "1px solid rgba(255, 255, 255, 0.1)",
                       background: "rgba(0, 0, 0, 0.2)",
                     }}
@@ -707,6 +717,8 @@ const PushSection = ({
                         margin: "0",
                         maxHeight: "150px",
                         overflowY: "auto",
+                        fontFamily: "Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace",
+                        lineHeight: "1.4",
                       }}
                     >
                       {item.code}
