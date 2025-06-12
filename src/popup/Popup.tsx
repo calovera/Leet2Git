@@ -619,41 +619,8 @@ const PushSection = ({
                     </div>
                   </div>
 
-                  {/* Difficulty and Language Tags */}
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "8px",
-                      marginBottom: "12px",
-                      flexWrap: "wrap",
-                    }}
-                  >
-                    <select
-                      value={getSolutionSetting(item.id || `${index}`, 'difficulty', item.difficulty || 'Level')}
-                      onChange={(e) => updateSolutionSetting(item.id || `${index}`, 'difficulty', e.target.value)}
-                      style={{
-                        fontSize: "11px",
-                        padding: "4px 8px",
-                        borderRadius: "6px",
-                        background: getSolutionSetting(item.id || `${index}`, 'difficulty', item.difficulty || 'Level') === 'Level' 
-                          ? "#6b7280" 
-                          : getSolutionSetting(item.id || `${index}`, 'difficulty', item.difficulty || 'Level') === "Easy"
-                            ? "#10b981"
-                            : getSolutionSetting(item.id || `${index}`, 'difficulty', item.difficulty || 'Level') === "Medium"
-                            ? "#f59e0b"
-                            : "#ef4444",
-                        color: "#ffffff",
-                        fontWeight: "500",
-                        border: "none",
-                        cursor: "pointer",
-                      }}
-                    >
-                      <option value="Level" style={{color: "#000"}}>Level</option>
-                      <option value="Easy" style={{color: "#000"}}>Easy</option>
-                      <option value="Medium" style={{color: "#000"}}>Medium</option>
-                      <option value="Hard" style={{color: "#000"}}>Hard</option>
-                    </select>
+                  {/* Language Tag */}
+                  <div style={{ marginBottom: "12px" }}>
                     <span
                       style={{
                         fontSize: "11px",
@@ -668,15 +635,42 @@ const PushSection = ({
                     </span>
                   </div>
 
-                  {/* Folder Path */}
+                  {/* Configuration Row */}
                   <div
                     style={{
                       display: "flex",
                       alignItems: "center",
-                      gap: "8px",
+                      gap: "10px",
+                      marginBottom: "8px",
                     }}
                   >
-                    <span style={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.5)" }}>📁</span>
+                    <select
+                      value={getSolutionSetting(item.id || `${index}`, 'difficulty', item.difficulty || 'Level')}
+                      onChange={(e) => updateSolutionSetting(item.id || `${index}`, 'difficulty', e.target.value)}
+                      style={{
+                        fontSize: "11px",
+                        padding: "6px 10px",
+                        borderRadius: "6px",
+                        background: getSolutionSetting(item.id || `${index}`, 'difficulty', item.difficulty || 'Level') === 'Level' 
+                          ? "#6b7280" 
+                          : getSolutionSetting(item.id || `${index}`, 'difficulty', item.difficulty || 'Level') === "Easy"
+                            ? "#10b981"
+                            : getSolutionSetting(item.id || `${index}`, 'difficulty', item.difficulty || 'Level') === "Medium"
+                            ? "#f59e0b"
+                            : "#ef4444",
+                        color: "#ffffff",
+                        fontWeight: "500",
+                        border: "none",
+                        cursor: "pointer",
+                        minWidth: "80px",
+                      }}
+                    >
+                      <option value="Level" style={{color: "#000"}}>Level</option>
+                      <option value="Easy" style={{color: "#000"}}>Easy</option>
+                      <option value="Medium" style={{color: "#000"}}>Medium</option>
+                      <option value="Hard" style={{color: "#000"}}>Hard</option>
+                    </select>
+                    
                     <input
                       type="text"
                       value={getSolutionSetting(item.id || `${index}`, 'folderPath', item.folderPath || 'Problems')}
@@ -687,15 +681,23 @@ const PushSection = ({
                         background: "rgba(255, 255, 255, 0.1)",
                         border: "1px solid rgba(255, 255, 255, 0.2)",
                         borderRadius: "6px",
-                        padding: "6px 8px",
+                        padding: "6px 10px",
                         color: "#ffffff",
                         flex: 1,
                         outline: "none",
                       }}
                     />
-                    <span style={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.5)" }}>
-                      /{item.title.replace(/[^a-zA-Z0-9]/g, '')}.{getFileExtension(item.language)}
-                    </span>
+                  </div>
+
+                  {/* Path Preview */}
+                  <div
+                    style={{
+                      fontSize: "10px",
+                      color: "rgba(255, 255, 255, 0.5)",
+                      fontFamily: "monospace",
+                    }}
+                  >
+                    📁 {getSolutionSetting(item.id || `${index}`, 'folderPath', item.folderPath || 'Problems')}/{item.title.replace(/[^a-zA-Z0-9]/g, '')}.{getFileExtension(item.language)}
                   </div>
                 </div>
 
