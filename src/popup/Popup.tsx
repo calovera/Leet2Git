@@ -276,23 +276,25 @@ const HomeSection = ({ stats }: { stats: Stats }) => {
                       gap: "8px",
                     }}
                   >
-                    <span
-                      style={{
-                        fontSize: "10px",
-                        padding: "2px 6px",
-                        borderRadius: "4px",
-                        background:
-                          solve.difficulty === "Easy"
-                            ? "#10b981"
-                            : solve.difficulty === "Medium"
-                            ? "#f59e0b"
-                            : "#ef4444",
-                        color: "#ffffff",
-                        fontWeight: "500",
-                      }}
-                    >
-                      {solve.difficulty}
-                    </span>
+                    {solve.difficulty && solve.difficulty !== "Level" && (
+                      <span
+                        style={{
+                          fontSize: "10px",
+                          padding: "2px 6px",
+                          borderRadius: "4px",
+                          background:
+                            solve.difficulty === "Easy"
+                              ? "#10b981"
+                              : solve.difficulty === "Medium"
+                              ? "#f59e0b"
+                              : "#ef4444",
+                          color: "#ffffff",
+                          fontWeight: "500",
+                        }}
+                      >
+                        {solve.difficulty}
+                      </span>
+                    )}
                     <span
                       style={{
                         fontSize: "11px",
@@ -393,7 +395,12 @@ const PushSection = ({
   };
 
   const getSolutionSetting = (itemId: string, field: 'difficulty' | 'folderPath', defaultValue: string) => {
-    return solutionSettings[itemId]?.[field] || defaultValue;
+    const setting = solutionSettings[itemId]?.[field];
+    // For folderPath, allow empty strings; for difficulty, use default if not set
+    if (field === 'folderPath') {
+      return setting !== undefined ? setting : defaultValue;
+    }
+    return setting || defaultValue;
   };
 
   const handleSync = async () => {

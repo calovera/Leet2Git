@@ -262,13 +262,44 @@ async function updateStats(solution) {
     const { stats = {
       streak: 0,
       counts: { easy: 0, medium: 0, hard: 0 },
-      recentSolves: []
+      recentSolves: [],
+      lastSolveDate: null
     }} = await chrome.storage.sync.get('stats');
     
     const difficulty = solution.difficulty.toLowerCase();
     if (stats.counts[difficulty] !== undefined) {
       stats.counts[difficulty]++;
       console.log(`[Leet2Git] Updated ${difficulty} count to ${stats.counts[difficulty]}`);
+    }
+    
+    // Update streak logic
+    const today = new Date().toDateString();
+    const lastSolveDate = stats.lastSolveDate;
+    
+    if (!lastSolveDate) {
+      // First solve ever
+      stats.streak = 1;
+      stats.lastSolveDate = today;
+      console.log(`[Leet2Git] Started streak with first solve`);
+    } else if (lastSolveDate === today) {
+      // Already solved today, don't change streak
+      console.log(`[Leet2Git] Already solved today, streak remains ${stats.streak}`);
+    } else {
+      const lastDate = new Date(lastSolveDate);
+      const todayDate = new Date(today);
+      const daysDiff = Math.floor((todayDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
+      
+      if (daysDiff === 1) {
+        // Consecutive day, increment streak
+        stats.streak++;
+        stats.lastSolveDate = today;
+        console.log(`[Leet2Git] Consecutive day! Streak increased to ${stats.streak}`);
+      } else {
+        // Streak broken, reset to 1
+        stats.streak = 1;
+        stats.lastSolveDate = today;
+        console.log(`[Leet2Git] Streak broken (${daysDiff} days gap), reset to 1`);
+      }
     }
     
     stats.recentSolves.unshift({
@@ -282,7 +313,7 @@ async function updateStats(solution) {
     stats.recentSolves = stats.recentSolves.slice(0, 10);
     
     await chrome.storage.sync.set({ stats });
-    console.log(`[Leet2Git] Stats updated for ${solution.title}`);
+    console.log(`[Leet2Git] Stats updated for ${solution.title}, streak: ${stats.streak}`);
   } catch (error) {
     console.error("Error updating stats:", error);
   }
