@@ -71,7 +71,6 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
       const slug = match[1];
       tabData.set(tabId, {
         slug: slug,
-        metadata: getQuestionMeta(slug),
         submissionCode: null
       });
       console.log(`[Leet2Git] Tab ${tabId} navigated to problem: ${slug}`);
@@ -217,7 +216,7 @@ async function processAcceptedSubmission(submissionId, tabId, data = null) {
     
     console.log(`[Leet2Git] Solution payload created for ${tabInfo.slug}`);
     
-    tempCodeStorage.delete(questionId);
+    if (questionId) tempCodeStorage.delete(questionId);
     
     const storageResult = await chrome.storage.sync.get(['pending', 'solvedSlugs']);
     const pending = storageResult.pending || [];
@@ -628,28 +627,7 @@ async function upsertFile({ token, owner, repo, branch, path, content, message }
 // Main message listener
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   switch (message.type) {
-    case 'graphql_question_data':
-      const questionMeta = {
-        slug: message.data.slug,
-        title: message.data.title,
-        difficulty: message.data.difficulty,
-        categoryTitle: message.data.categoryTitle,
-        topicTags: message.data.topicTags
-      };
-      
-      console.log(`[Leet2Git] GraphQL data received:`, JSON.stringify(questionMeta, null, 2));
-      cacheQuestionMeta(questionMeta);
-      
-      if (sender.tab?.id) {
-        const tabInfo = tabData.get(sender.tab.id);
-        if (tabInfo && tabInfo.slug === questionMeta.slug) {
-          tabInfo.metadata = questionMeta;
-          console.log(`[Leet2Git] Updated metadata for tab ${sender.tab.id}: ${questionMeta.title}`);
-        }
-      }
-      
-      sendResponse({ success: true });
-      break;
+
     case 'submission_accepted':
       processAcceptedSubmission(message.submissionId, message.tabId || sender.tab?.id);
       sendResponse({ success: true });

@@ -336,6 +336,7 @@ const PushSection = ({
   const [isPushing, setIsPushing] = useState(false);
   const [pushStatus, setPushStatus] = useState<string>("");
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const [solutionSettings, setSolutionSettings] = useState<{[key: string]: {difficulty: string, folderPath: string}}>({});
 
   const toggleCodePreview = (itemId: string) => {
     const newExpanded = new Set(expandedItems);
@@ -367,9 +368,49 @@ const PushSection = ({
     }
   };
 
+  const updateSolutionSetting = async (itemId: string, field: 'difficulty' | 'folderPath', value: string) => {
+    const updatedSettings = {
+      ...solutionSettings,
+      [itemId]: {
+        ...solutionSettings[itemId],
+        [field]: value
+      }
+    };
+    setSolutionSettings(updatedSettings);
+
+    // Update the actual pending solution
+    const updatedPending = pending.map(item => {
+      const id = item.id || `${pending.indexOf(item)}`;
+      if (id === itemId) {
+        return { ...item, [field]: value };
+      }
+      return item;
+    });
+
+    // Save to storage
+    await chrome.storage.sync.set({ pending: updatedPending });
+  };
+
+  const getSolutionSetting = (itemId: string, field: 'difficulty' | 'folderPath', defaultValue: string) => {
+    return solutionSettings[itemId]?.[field] || defaultValue;
+  };
+
   const handleSync = async () => {
     if (!auth || !auth.connected) {
       setPushStatus("Please connect to GitHub first in Settings tab");
+      setTimeout(() => setPushStatus(""), 3000);
+      return;
+    }
+
+    // Validate that all solutions have difficulty selected
+    const hasInvalidSolutions = pending.some(item => {
+      const itemId = item.id || `${pending.indexOf(item)}`;
+      const difficulty = getSolutionSetting(itemId, 'difficulty', item.difficulty || 'Level');
+      return difficulty === 'Level';
+    });
+
+    if (hasInvalidSolutions) {
+      setPushStatus("Please select difficulty for all solutions before pushing");
       setTimeout(() => setPushStatus(""), 3000);
       return;
     }
@@ -384,7 +425,20 @@ const PushSection = ({
 
       if (response.success) {
         setPushStatus(`Successfully synced ${response.count || 0} solutions!`);
-        // Refresh data to clear pending solutions
+        // Update stats for solutions with valid difficulties
+        pending.forEach(async (item) => {
+          const itemId = item.id || `${pending.indexOf(item)}`;
+          const difficulty = getSolutionSetting(itemId, 'difficulty', item.difficulty || 'Level');
+          if (difficulty !== 'Level') {
+            // Update difficulty counter in stats
+            const { stats = { streak: 0, counts: { easy: 0, medium: 0, hard: 0 }, recentSolves: [] } } = await chrome.storage.sync.get('stats');
+            const difficultyKey = difficulty.toLowerCase();
+            if (stats.counts[difficultyKey] !== undefined) {
+              stats.counts[difficultyKey]++;
+              await chrome.storage.sync.set({ stats });
+            }
+          }
+        });
         fetchData();
       } else {
         setPushStatus(`Error: ${response.error || "Unknown error occurred"}`);
