@@ -1,8 +1,8 @@
 {
-  "../../../../../@crx/manifest": {
-    "file": "assets/crx-manifest.js.CFOAPo97.js",
+  "../../../@crx/manifest": {
+    "file": "assets/crx-manifest.js.C8BSPv6-.js",
     "name": "crx-manifest.js",
-    "src": "../../../../../@crx/manifest",
+    "src": "../../../@crx/manifest",
     "isEntry": true
   },
   "_client.nMGDAYsi.js": {
