@@ -554,35 +554,38 @@ const PushSection = ({
                   overflow: "hidden",
                 }}
               >
-                <div style={{ padding: "20px" }}>
-                  {/* Header */}
+                <div style={{ padding: "16px" }}>
+                  {/* Compact Header */}
                   <div
                     style={{
                       display: "flex",
                       justifyContent: "space-between",
-                      alignItems: "center",
-                      marginBottom: "16px",
+                      alignItems: "flex-start",
+                      marginBottom: "12px",
                     }}
                   >
-                    <div style={{ flex: 1 }}>
-                      <h3
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div
                         style={{
-                          fontSize: "15px",
+                          fontSize: "14px",
                           fontWeight: "600",
                           color: "#ffffff",
-                          margin: "0 0 6px 0",
+                          marginBottom: "4px",
                           lineHeight: "1.2",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
                         }}
                       >
                         {item.title}
-                      </h3>
+                      </div>
                       <span
                         style={{
-                          fontSize: "12px",
+                          fontSize: "11px",
                           color: "#a78bfa",
                           background: "rgba(139, 92, 246, 0.15)",
-                          padding: "3px 8px",
-                          borderRadius: "6px",
+                          padding: "2px 6px",
+                          borderRadius: "4px",
                           fontWeight: "500",
                           fontFamily: "monospace",
                         }}
@@ -591,7 +594,7 @@ const PushSection = ({
                       </span>
                     </div>
                     
-                    <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                    <div style={{ display: "flex", gap: "6px", flexShrink: 0, marginLeft: "12px" }}>
                       <button
                         onClick={() => toggleCodePreview(item.id || `${index}`)}
                         style={{
@@ -600,9 +603,9 @@ const PushSection = ({
                             : "rgba(255, 255, 255, 0.1)",
                           color: "#ffffff",
                           border: "1px solid rgba(255, 255, 255, 0.2)",
-                          borderRadius: "8px",
-                          padding: "8px 12px",
-                          fontSize: "12px",
+                          borderRadius: "6px",
+                          padding: "6px 10px",
+                          fontSize: "11px",
                           cursor: "pointer",
                           fontWeight: "500",
                         }}
@@ -615,11 +618,12 @@ const PushSection = ({
                           background: "rgba(239, 68, 68, 0.2)",
                           color: "#ff8a80",
                           border: "1px solid rgba(239, 68, 68, 0.3)",
-                          borderRadius: "8px",
-                          padding: "8px 10px",
-                          fontSize: "12px",
+                          borderRadius: "6px",
+                          padding: "6px 8px",
+                          fontSize: "11px",
                           cursor: "pointer",
                           fontWeight: "500",
+                          minWidth: "28px",
                         }}
                       >
                         ✕
@@ -627,123 +631,73 @@ const PushSection = ({
                     </div>
                   </div>
 
-                  {/* Configuration Grid */}
+                  {/* Compact Configuration */}
                   <div
                     style={{
-                      display: "grid",
-                      gridTemplateColumns: "100px 1fr",
-                      gap: "12px",
-                      alignItems: "end",
-                      marginBottom: "16px",
+                      display: "flex",
+                      gap: "8px",
+                      marginBottom: "10px",
                     }}
                   >
-                    <div>
-                      <label
-                        style={{
-                          display: "block",
-                          fontSize: "10px",
-                          fontWeight: "600",
-                          color: "rgba(255, 255, 255, 0.6)",
-                          marginBottom: "4px",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.5px",
-                        }}
-                      >
-                        Difficulty
-                      </label>
-                      <select
-                        value={getSolutionSetting(item.id || `${index}`, 'difficulty', item.difficulty || 'Level')}
-                        onChange={(e) => updateSolutionSetting(item.id || `${index}`, 'difficulty', e.target.value)}
-                        style={{
-                          width: "100%",
-                          fontSize: "12px",
-                          padding: "8px 10px",
-                          borderRadius: "8px",
-                          background: getSolutionSetting(item.id || `${index}`, 'difficulty', item.difficulty || 'Level') === 'Level' 
-                            ? "#6b7280" 
-                            : getSolutionSetting(item.id || `${index}`, 'difficulty', item.difficulty || 'Level') === "Easy"
-                            ? "#10b981"
-                            : getSolutionSetting(item.id || `${index}`, 'difficulty', item.difficulty || 'Level') === "Medium"
-                            ? "#f59e0b"
-                            : "#ef4444",
-                          color: "#ffffff",
-                          fontWeight: "600",
-                          border: "none",
-                          cursor: "pointer",
-                          outline: "none",
-                        }}
-                      >
-                        <option value="Level" style={{color: "#000"}}>Level</option>
-                        <option value="Easy" style={{color: "#000"}}>Easy</option>
-                        <option value="Medium" style={{color: "#000"}}>Medium</option>
-                        <option value="Hard" style={{color: "#000"}}>Hard</option>
-                      </select>
-                    </div>
-                    
-                    <div>
-                      <label
-                        style={{
-                          display: "block",
-                          fontSize: "10px",
-                          fontWeight: "600",
-                          color: "rgba(255, 255, 255, 0.6)",
-                          marginBottom: "4px",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.5px",
-                        }}
-                      >
-                        Folder Path
-                      </label>
-                      <input
-                        type="text"
-                        value={getSolutionSetting(item.id || `${index}`, 'folderPath', item.folderPath || 'Problems')}
-                        onChange={(e) => updateSolutionSetting(item.id || `${index}`, 'folderPath', e.target.value)}
-                        placeholder="e.g., Problems"
-                        style={{
-                          width: "100%",
-                          fontSize: "12px",
-                          background: "rgba(255, 255, 255, 0.08)",
-                          border: "1px solid rgba(255, 255, 255, 0.2)",
-                          borderRadius: "8px",
-                          padding: "8px 12px",
-                          color: "#ffffff",
-                          outline: "none",
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Path Preview */}
-                  <div
-                    style={{
-                      background: "rgba(0, 0, 0, 0.2)",
-                      border: "1px solid rgba(255, 255, 255, 0.1)",
-                      borderRadius: "8px",
-                      padding: "10px 12px",
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: "9px",
-                        fontWeight: "600",
-                        color: "rgba(255, 255, 255, 0.4)",
-                        marginBottom: "4px",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.5px",
-                      }}
-                    >
-                      GitHub Path
-                    </div>
-                    <div
+                    <select
+                      value={getSolutionSetting(item.id || `${index}`, 'difficulty', item.difficulty || 'Level')}
+                      onChange={(e) => updateSolutionSetting(item.id || `${index}`, 'difficulty', e.target.value)}
                       style={{
                         fontSize: "11px",
-                        color: "#a5b4fc",
-                        fontFamily: "Monaco, 'Cascadia Code', monospace",
-                        wordBreak: "break-all",
+                        padding: "6px 8px",
+                        borderRadius: "6px",
+                        background: getSolutionSetting(item.id || `${index}`, 'difficulty', item.difficulty || 'Level') === 'Level' 
+                          ? "#6b7280" 
+                          : getSolutionSetting(item.id || `${index}`, 'difficulty', item.difficulty || 'Level') === "Easy"
+                          ? "#10b981"
+                          : getSolutionSetting(item.id || `${index}`, 'difficulty', item.difficulty || 'Level') === "Medium"
+                          ? "#f59e0b"
+                          : "#ef4444",
+                        color: "#ffffff",
+                        fontWeight: "600",
+                        border: "none",
+                        cursor: "pointer",
+                        outline: "none",
+                        minWidth: "80px",
                       }}
                     >
-                      📁 {getSolutionSetting(item.id || `${index}`, 'folderPath', item.folderPath || 'Problems')}/{item.title.replace(/[^a-zA-Z0-9]/g, '')}.{getFileExtension(item.language)}
-                    </div>
+                      <option value="Level" style={{color: "#000"}}>Level</option>
+                      <option value="Easy" style={{color: "#000"}}>Easy</option>
+                      <option value="Medium" style={{color: "#000"}}>Medium</option>
+                      <option value="Hard" style={{color: "#000"}}>Hard</option>
+                    </select>
+                    
+                    <input
+                      type="text"
+                      value={getSolutionSetting(item.id || `${index}`, 'folderPath', item.folderPath || 'Problems')}
+                      onChange={(e) => updateSolutionSetting(item.id || `${index}`, 'folderPath', e.target.value)}
+                      placeholder="Folder path"
+                      style={{
+                        flex: 1,
+                        fontSize: "11px",
+                        background: "rgba(255, 255, 255, 0.08)",
+                        border: "1px solid rgba(255, 255, 255, 0.2)",
+                        borderRadius: "6px",
+                        padding: "6px 8px",
+                        color: "#ffffff",
+                        outline: "none",
+                      }}
+                    />
+                  </div>
+
+                  {/* Compact Path Preview */}
+                  <div
+                    style={{
+                      fontSize: "10px",
+                      color: "rgba(255, 255, 255, 0.5)",
+                      fontFamily: "monospace",
+                      background: "rgba(0, 0, 0, 0.15)",
+                      padding: "6px 8px",
+                      borderRadius: "4px",
+                      wordBreak: "break-all",
+                    }}
+                  >
+                    📁 {getSolutionSetting(item.id || `${index}`, 'folderPath', item.folderPath || 'Problems')}/{item.title.replace(/[^a-zA-Z0-9]/g, '')}.{getFileExtension(item.language)}
                   </div>
                 </div>
 
