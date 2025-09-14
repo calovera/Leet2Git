@@ -1023,6 +1023,12 @@ const SettingsSection = ({
               </div>
               <button
                 onClick={async () => {
+                  // Check if Chrome extension APIs are available
+                  if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.sendMessage) {
+                    setVerifyStatus("✗ Extension APIs not available. Please load the extension in Chrome.");
+                    return;
+                  }
+                  
                   setVerifyStatus("Connecting to GitHub...");
                   try {
                     const response = await new Promise<any>((resolve) => {
@@ -1043,7 +1049,8 @@ const SettingsSection = ({
                       setVerifyStatus(`✗ ${response.error || "Login failed"}`);
                     }
                   } catch (error) {
-                    setVerifyStatus("✗ Failed to connect to GitHub");
+                    console.error("OAuth login error:", error);
+                    setVerifyStatus(`✗ Failed to connect to GitHub: ${error?.message || error}`);
                   }
                 }}
                 style={{

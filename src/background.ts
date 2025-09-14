@@ -370,9 +370,11 @@ async function handleAuthVerification(token, sendResponse, isOAuthToken = false)
 }
 
 async function handleOAuthLogin(sendResponse) {
+  console.log('[OAuth] Starting OAuth login flow');
   try {
     const CLIENT_ID = 'Ov23liPVnJxvGsF4Y9qm';
     const redirectUri = chrome.identity.getRedirectURL();
+    console.log('[OAuth] Redirect URI:', redirectUri);
     
     // Generate CSRF state parameter for security
     const state = generateRandomString(32);
@@ -390,12 +392,13 @@ async function handleOAuthLogin(sendResponse) {
     authUrl.searchParams.set('state', state);
     
     // Launch OAuth flow
+    console.log('[OAuth] Launching web auth flow with URL:', authUrl.toString());
     chrome.identity.launchWebAuthFlow({
       url: authUrl.toString(),
       interactive: true
     }, async (redirectUrl) => {
       if (chrome.runtime.lastError) {
-        console.error('OAuth flow error:', chrome.runtime.lastError);
+        console.error('[OAuth] Chrome runtime error:', chrome.runtime.lastError);
         sendResponse({ success: false, error: chrome.runtime.lastError.message });
         return;
       }
@@ -469,9 +472,9 @@ async function handleOAuthLogin(sendResponse) {
       }
     });
     
-  } catch (error) {
-    console.error('OAuth login error:', error);
-    sendResponse({ success: false, error: error.message });
+  } catch (error: any) {
+    console.error('[OAuth] Login error:', error);
+    sendResponse({ success: false, error: error?.message || 'OAuth initialization failed' });
   }
 }
 
@@ -557,14 +560,14 @@ async function handlePush(sendResponse) {
     await ensureRepositoryExists(auth.token, config, auth.authType);
     
     let successCount = 0;
-    const results = [];
+    const results: Array<{ success: boolean; title: string; error?: string }> = [];
     
     for (const solution of pending) {
       try {
         await pushSolutionToGitHub(solution, auth, config);
         successCount++;
         results.push({ success: true, title: solution.title });
-      } catch (error) {
+      } catch (error: any) {
         console.error(`Failed to push ${solution.title}:`, error);
         results.push({ success: false, title: solution.title, error: error.message });
       }
@@ -739,7 +742,7 @@ async function upsertFile({ token, owner, repo, branch, path, content, message, 
     // File doesn't exist, that's okay
   }
   
-  const updateData = {
+  const updateData: any = {
     message: message || `Update ${path}`,
     content: btoa(unescape(encodeURIComponent(content))),
     branch: branch
@@ -783,6 +786,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
       break;
     case "oauthLogin":
+      console.log('[Background] Received oauthLogin message');
       handleOAuthLogin(sendResponse);
       break;
     case "push":
