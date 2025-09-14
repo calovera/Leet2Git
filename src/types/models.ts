@@ -59,6 +59,13 @@ export interface GitHubAuth {
   username: string;
   email: string;
   connected: boolean;
+  authType?: 'oauth' | 'pat';  // Track authentication type
+  userInfo?: {
+    login: string;
+    name?: string;
+    avatar_url?: string;
+    html_url?: string;
+  };
 }
 
 export interface HomeData {
