@@ -50,7 +50,7 @@ const getFileExtension = (language: string): string => {
     mysql: "sql",
     postgresql: "sql",
   };
-  
+
   const normalizedLang = (language || "").toLowerCase().trim();
   return extensions[normalizedLang] || "py";
 };
@@ -339,7 +339,9 @@ const PushSection = ({
   const [isPushing, setIsPushing] = useState(false);
   const [pushStatus, setPushStatus] = useState<string>("");
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
-  const [solutionSettings, setSolutionSettings] = useState<{[key: string]: {difficulty: string, folderPath: string}}>({});
+  const [solutionSettings, setSolutionSettings] = useState<{
+    [key: string]: { difficulty: string; folderPath: string };
+  }>({});
 
   const toggleCodePreview = (itemId: string) => {
     const newExpanded = new Set(expandedItems);
@@ -362,7 +364,7 @@ const PushSection = ({
       await chrome.storage.sync.set({ pending: updatedPending });
 
       // Update badge count immediately
-      chrome.runtime.sendMessage({ type: 'updateBadge' });
+      chrome.runtime.sendMessage({ type: "updateBadge" });
 
       // Refresh data to update UI
       fetchData();
@@ -371,18 +373,22 @@ const PushSection = ({
     }
   };
 
-  const updateSolutionSetting = async (itemId: string, field: 'difficulty' | 'folderPath', value: string) => {
+  const updateSolutionSetting = async (
+    itemId: string,
+    field: "difficulty" | "folderPath",
+    value: string
+  ) => {
     const updatedSettings = {
       ...solutionSettings,
       [itemId]: {
         ...solutionSettings[itemId],
-        [field]: value
-      }
+        [field]: value,
+      },
     };
     setSolutionSettings(updatedSettings);
 
     // Update the actual pending solution
-    const updatedPending = pending.map(item => {
+    const updatedPending = pending.map((item) => {
       const id = item.id || `${pending.indexOf(item)}`;
       if (id === itemId) {
         return { ...item, [field]: value };
@@ -394,10 +400,14 @@ const PushSection = ({
     await chrome.storage.sync.set({ pending: updatedPending });
   };
 
-  const getSolutionSetting = (itemId: string, field: 'difficulty' | 'folderPath', defaultValue: string) => {
+  const getSolutionSetting = (
+    itemId: string,
+    field: "difficulty" | "folderPath",
+    defaultValue: string
+  ) => {
     const setting = solutionSettings[itemId]?.[field];
     // For folderPath, allow empty strings; for difficulty, use default if not set
-    if (field === 'folderPath') {
+    if (field === "folderPath") {
       return setting !== undefined ? setting : defaultValue;
     }
     return setting || defaultValue;
@@ -411,14 +421,20 @@ const PushSection = ({
     }
 
     // Validate that all solutions have difficulty selected
-    const hasInvalidSolutions = pending.some(item => {
+    const hasInvalidSolutions = pending.some((item) => {
       const itemId = item.id || `${pending.indexOf(item)}`;
-      const difficulty = getSolutionSetting(itemId, 'difficulty', item.difficulty || 'Level');
-      return difficulty === 'Level';
+      const difficulty = getSolutionSetting(
+        itemId,
+        "difficulty",
+        item.difficulty || "Level"
+      );
+      return difficulty === "Level";
     });
 
     if (hasInvalidSolutions) {
-      setPushStatus("Please select difficulty for all solutions before pushing");
+      setPushStatus(
+        "Please select difficulty for all solutions before pushing"
+      );
       setTimeout(() => setPushStatus(""), 3000);
       return;
     }
@@ -436,10 +452,20 @@ const PushSection = ({
         // Update stats for solutions with valid difficulties
         pending.forEach(async (item) => {
           const itemId = item.id || `${pending.indexOf(item)}`;
-          const difficulty = getSolutionSetting(itemId, 'difficulty', item.difficulty || 'Level');
-          if (difficulty !== 'Level') {
+          const difficulty = getSolutionSetting(
+            itemId,
+            "difficulty",
+            item.difficulty || "Level"
+          );
+          if (difficulty !== "Level") {
             // Update difficulty counter in stats
-            const { stats = { streak: 0, counts: { easy: 0, medium: 0, hard: 0 }, recentSolves: [] } } = await chrome.storage.sync.get('stats');
+            const {
+              stats = {
+                streak: 0,
+                counts: { easy: 0, medium: 0, hard: 0 },
+                recentSolves: [],
+              },
+            } = await chrome.storage.sync.get("stats");
             const difficultyKey = difficulty.toLowerCase();
             if (stats.counts[difficultyKey] !== undefined) {
               stats.counts[difficultyKey]++;
@@ -600,13 +626,20 @@ const PushSection = ({
                         {item.language}
                       </span>
                     </div>
-                    
-                    <div style={{ display: "flex", gap: "6px", flexShrink: 0, marginLeft: "12px" }}>
+
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "6px",
+                        flexShrink: 0,
+                        marginLeft: "12px",
+                      }}
+                    >
                       <button
                         onClick={() => toggleCodePreview(item.id || `${index}`)}
                         style={{
-                          background: expandedItems.has(item.id || `${index}`) 
-                            ? "rgba(139, 92, 246, 0.4)" 
+                          background: expandedItems.has(item.id || `${index}`)
+                            ? "rgba(139, 92, 246, 0.4)"
                             : "rgba(255, 255, 255, 0.1)",
                           color: "#ffffff",
                           border: "1px solid rgba(255, 255, 255, 0.2)",
@@ -617,10 +650,14 @@ const PushSection = ({
                           fontWeight: "500",
                         }}
                       >
-                        {expandedItems.has(item.id || `${index}`) ? "Hide" : "Code"}
+                        {expandedItems.has(item.id || `${index}`)
+                          ? "Hide"
+                          : "Code"}
                       </button>
                       <button
-                        onClick={() => handleDeleteSubmission(item.id || `${index}`)}
+                        onClick={() =>
+                          handleDeleteSubmission(item.id || `${index}`)
+                        }
                         style={{
                           background: "rgba(239, 68, 68, 0.2)",
                           color: "#ff8a80",
@@ -647,19 +684,42 @@ const PushSection = ({
                     }}
                   >
                     <select
-                      value={getSolutionSetting(item.id || `${index}`, 'difficulty', item.difficulty || 'Level')}
-                      onChange={(e) => updateSolutionSetting(item.id || `${index}`, 'difficulty', e.target.value)}
+                      value={getSolutionSetting(
+                        item.id || `${index}`,
+                        "difficulty",
+                        item.difficulty || "Level"
+                      )}
+                      onChange={(e) =>
+                        updateSolutionSetting(
+                          item.id || `${index}`,
+                          "difficulty",
+                          e.target.value
+                        )
+                      }
                       style={{
                         fontSize: "11px",
                         padding: "6px 8px",
                         borderRadius: "6px",
-                        background: getSolutionSetting(item.id || `${index}`, 'difficulty', item.difficulty || 'Level') === 'Level' 
-                          ? "#6b7280" 
-                          : getSolutionSetting(item.id || `${index}`, 'difficulty', item.difficulty || 'Level') === "Easy"
-                          ? "#10b981"
-                          : getSolutionSetting(item.id || `${index}`, 'difficulty', item.difficulty || 'Level') === "Medium"
-                          ? "#f59e0b"
-                          : "#ef4444",
+                        background:
+                          getSolutionSetting(
+                            item.id || `${index}`,
+                            "difficulty",
+                            item.difficulty || "Level"
+                          ) === "Level"
+                            ? "#6b7280"
+                            : getSolutionSetting(
+                                item.id || `${index}`,
+                                "difficulty",
+                                item.difficulty || "Level"
+                              ) === "Easy"
+                            ? "#10b981"
+                            : getSolutionSetting(
+                                item.id || `${index}`,
+                                "difficulty",
+                                item.difficulty || "Level"
+                              ) === "Medium"
+                            ? "#f59e0b"
+                            : "#ef4444",
                         color: "#ffffff",
                         fontWeight: "600",
                         border: "none",
@@ -668,16 +728,34 @@ const PushSection = ({
                         minWidth: "80px",
                       }}
                     >
-                      <option value="Level" style={{color: "#000"}}>Level</option>
-                      <option value="Easy" style={{color: "#000"}}>Easy</option>
-                      <option value="Medium" style={{color: "#000"}}>Medium</option>
-                      <option value="Hard" style={{color: "#000"}}>Hard</option>
+                      <option value="Level" style={{ color: "#000" }}>
+                        Level
+                      </option>
+                      <option value="Easy" style={{ color: "#000" }}>
+                        Easy
+                      </option>
+                      <option value="Medium" style={{ color: "#000" }}>
+                        Medium
+                      </option>
+                      <option value="Hard" style={{ color: "#000" }}>
+                        Hard
+                      </option>
                     </select>
-                    
+
                     <input
                       type="text"
-                      value={getSolutionSetting(item.id || `${index}`, 'folderPath', item.folderPath || 'Problems')}
-                      onChange={(e) => updateSolutionSetting(item.id || `${index}`, 'folderPath', e.target.value)}
+                      value={getSolutionSetting(
+                        item.id || `${index}`,
+                        "folderPath",
+                        item.folderPath || "Problems"
+                      )}
+                      onChange={(e) =>
+                        updateSolutionSetting(
+                          item.id || `${index}`,
+                          "folderPath",
+                          e.target.value
+                        )
+                      }
                       placeholder="Folder path"
                       style={{
                         flex: 1,
@@ -704,7 +782,14 @@ const PushSection = ({
                       wordBreak: "break-all",
                     }}
                   >
-                    📁 {getSolutionSetting(item.id || `${index}`, 'folderPath', item.folderPath || 'Problems')}/{item.title.replace(/[^a-zA-Z0-9]/g, '')}.{getFileExtension(item.language)}
+                    📁{" "}
+                    {getSolutionSetting(
+                      item.id || `${index}`,
+                      "folderPath",
+                      item.folderPath || "Problems"
+                    )}
+                    /{item.title.replace(/[^a-zA-Z0-9]/g, "")}.
+                    {getFileExtension(item.language)}
                   </div>
                 </div>
 
@@ -726,7 +811,8 @@ const PushSection = ({
                         margin: "0",
                         maxHeight: "150px",
                         overflowY: "auto",
-                        fontFamily: "Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace",
+                        fontFamily:
+                          "Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace",
                         lineHeight: "1.4",
                       }}
                     >
@@ -1194,8 +1280,6 @@ const SettingsSection = ({
             </label>
           </div>
 
-
-
           <button
             onClick={handleSaveConfig}
             disabled={isSaving}
@@ -1324,7 +1408,7 @@ const Popup: React.FC = () => {
             <div
               style={{ fontSize: "18px", fontWeight: "bold", color: "#ffffff" }}
             >
-              Leet2Git
+              Leet2Git (Beta)
             </div>
             <div
               style={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.7)" }}

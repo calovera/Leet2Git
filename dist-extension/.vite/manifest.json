@@ -1,8 +1,8 @@
 {
-  "../../../@crx/manifest": {
-    "file": "assets/crx-manifest.js.C8BSPv6-.js",
+  "../../../../../@crx/manifest": {
+    "file": "assets/crx-manifest.js.BTzz_mlL.js",
     "name": "crx-manifest.js",
-    "src": "../../../@crx/manifest",
+    "src": "../../../../../@crx/manifest",
     "isEntry": true
   },
   "_client.nMGDAYsi.js": {
@@ -35,7 +35,7 @@
     ]
   },
   "src/popup/index.html": {
-    "file": "assets/index.html.CHXDmNcv.js",
+    "file": "assets/index.html.oxskslVv.js",
     "name": "index.html",
     "src": "src/popup/index.html",
     "isEntry": true,
