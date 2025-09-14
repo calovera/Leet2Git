@@ -8,6 +8,21 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = parseInt(process.env.PORT || '5000', 10);
 
+// Add JSON body parser middleware
+app.use(express.json());
+
+// Add CORS headers for extension communication
+app.use((req, res, next) => {
+  // Allow requests from Chrome extensions
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
 // Serve static files from the extension build
 app.use('/extension', express.static(path.join(__dirname, '../dist-extension')));
 
@@ -76,6 +91,73 @@ app.get('/', (req, res) => {
     </body>
     </html>
   `);
+});
+
+// GitHub OAuth token exchange endpoint
+app.post('/api/github/oauth/token', async (req, res) => {
+  try {
+    const { code } = req.body;
+    
+    if (!code) {
+      return res.status(400).json({ error: 'Authorization code is required' });
+    }
+
+    // GitHub OAuth app credentials
+    // These should be stored securely in environment variables
+    const CLIENT_ID = process.env.GITHUB_CLIENT_ID || 'Ov23liPVnJxvGsF4Y9qm';
+    const CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET || '';
+    
+    // Exchange authorization code for access token
+    const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        client_id: CLIENT_ID,
+        client_secret: CLIENT_SECRET,
+        code: code,
+      }),
+    });
+
+    const tokenData = await tokenResponse.json();
+    
+    if (tokenData.error) {
+      console.error('GitHub OAuth error:', tokenData);
+      return res.status(400).json({ 
+        error: tokenData.error_description || 'Failed to exchange code for token' 
+      });
+    }
+
+    // Validate the token by fetching user info
+    const userResponse = await fetch('https://api.github.com/user', {
+      headers: {
+        'Authorization': `Bearer ${tokenData.access_token}`,
+        'Accept': 'application/vnd.github.v3+json',
+      },
+    });
+
+    if (!userResponse.ok) {
+      return res.status(400).json({ error: 'Invalid access token' });
+    }
+
+    const userData = await userResponse.json();
+
+    // Return the access token and user info
+    res.json({
+      access_token: tokenData.access_token,
+      user: {
+        login: userData.login,
+        name: userData.name,
+        avatar_url: userData.avatar_url,
+        html_url: userData.html_url,
+      },
+    });
+  } catch (error) {
+    console.error('OAuth token exchange error:', error);
+    res.status(500).json({ error: 'Internal server error during OAuth flow' });
+  }
 });
 
 // Health check endpoint
