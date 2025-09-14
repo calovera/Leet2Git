@@ -3,6 +3,7 @@
   "name": "Leet2Git",
   "version": "1.0.1",
   "description": "Sync LeetCode solutions to GitHub repositories automatically",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAjQU5EzWdczmXuYR+4C7XP8iu6ELbCGQzh+EYfwVQ0Gz7M3fgcKB7+FvnrJrAz1WR8vP+9KAe+AAPL5U8lzJrFYf+7Hs9GJ9K0Qm2jZ0D1kL8+oQ8zF3mYz7zYvJ4K+cqnGy6xrV3Md0jGzn8b0F+8Z9gH0F+oF4pLLOm5s0HtVz2I6LbD5Q8fJ+4gzV8L9WJQRH4zP9L+FGz8K9V0L0Q8z8mP5VGr+b8Lh4FgQ0V9z6M4t0HA2YFQzYvKhbF+5D9yVyGy8J3zQF0t8LGH8qLQ0F+oL4DnQRH0+J4K8zVkKg8l9sH2b5Q+yYz0F+lQ2Qv8g+rV3Q8n4zH5V0G+tVQIDAQAB",
   "icons": {
     "16": "icons/16.png",
     "32": "icons/32.png",
