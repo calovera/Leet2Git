@@ -103,9 +103,13 @@ app.post('/api/github/oauth/token', async (req, res) => {
     }
 
     // GitHub OAuth app credentials
-    // These should be stored securely in environment variables
     const CLIENT_ID = process.env.GITHUB_CLIENT_ID || 'Ov23liPVnJxvGsF4Y9qm';
-    const CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET || '';
+    const CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET;
+    
+    if (!CLIENT_SECRET) {
+      console.error('GITHUB_CLIENT_SECRET is not configured');
+      return res.status(500).json({ error: 'OAuth is not properly configured. Please set GITHUB_CLIENT_SECRET.' });
+    }
     
     // Exchange authorization code for access token
     const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
