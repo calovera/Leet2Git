@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import type { GitHubAuth, RepoCfg } from "../types/models";
 
 interface Stats {
   streak: number;
@@ -55,22 +56,7 @@ const getFileExtension = (language: string): string => {
   return extensions[normalizedLang] || "py";
 };
 
-interface GitHubAuth {
-  token: string;
-  username: string;
-  email: string;
-  connected: boolean;
-}
-
-interface RepoCfg {
-  owner: string;
-  repo: string;
-  branch: string;
-  private: boolean;
-  folderStructure: "difficulty" | "topic" | "flat";
-  includeDescription: boolean;
-  includeTestCases: boolean;
-}
+// Removed - now imported from types/models.ts
 
 interface HomeData {
   stats: Stats;
@@ -361,7 +347,7 @@ const PushSection = ({
       );
 
       // Update storage
-      await chrome.storage.sync.set({ pending: updatedPending });
+      await chrome.storage.local.set({ pending: updatedPending });
 
       // Update badge count immediately
       chrome.runtime.sendMessage({ type: "updateBadge" });
@@ -397,7 +383,7 @@ const PushSection = ({
     });
 
     // Save to storage
-    await chrome.storage.sync.set({ pending: updatedPending });
+    await chrome.storage.local.set({ pending: updatedPending });
   };
 
   const getSolutionSetting = (
@@ -465,11 +451,11 @@ const PushSection = ({
                 counts: { easy: 0, medium: 0, hard: 0 },
                 recentSolves: [],
               },
-            } = await chrome.storage.sync.get("stats");
+            } = await chrome.storage.local.get("stats");
             const difficultyKey = difficulty.toLowerCase();
             if (stats.counts[difficultyKey] !== undefined) {
               stats.counts[difficultyKey]++;
-              await chrome.storage.sync.set({ stats });
+              await chrome.storage.local.set({ stats });
             }
           }
         });
@@ -991,7 +977,7 @@ const SettingsSection = ({
             </div>
             <button
               onClick={async () => {
-                await chrome.storage.sync.remove([
+                await chrome.storage.local.remove([
                   "github_token",
                   "github_user",
                   "auth",

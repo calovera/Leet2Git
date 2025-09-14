@@ -13,10 +13,20 @@ app.use(express.json());
 
 // Add CORS headers for extension communication
 app.use((req, res, next) => {
-  // Allow requests from Chrome extensions
-  res.header('Access-Control-Allow-Origin', '*');
+  // Only allow requests from the extension and localhost
+  const origin = req.headers.origin || '';
+  
+  // Allow Chrome extension origins and localhost for development
+  if (origin.startsWith('chrome-extension://') || 
+      origin.includes('localhost') || 
+      origin.includes('127.0.0.1')) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+  }
+  
   res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type');
+  
   if (req.method === 'OPTIONS') {
     return res.sendStatus(200);
   }

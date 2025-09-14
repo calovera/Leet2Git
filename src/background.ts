@@ -8,6 +8,13 @@ const recentSubmissions = new Map<string, number>();
 
 // Helper functions
 
+function generateRandomString(length: number): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const array = new Uint8Array(length);
+  crypto.getRandomValues(array);
+  return Array.from(array, byte => chars[byte % chars.length]).join('');
+}
+
 function toPascalCase(str) {
   return str.split('-').map(word => 
     word.charAt(0).toUpperCase() + word.slice(1)
@@ -16,7 +23,7 @@ function toPascalCase(str) {
 
 async function updateBadge() {
   try {
-    const result = await chrome.storage.sync.get(['pending', 'auth']);
+    const result = await chrome.storage.local.get(['pending', 'auth']);
     const pending = result.pending || [];
     const auth = result.auth;
     
@@ -218,7 +225,7 @@ async function processAcceptedSubmission(submissionId, tabId, data = null) {
     
     if (questionId) tempCodeStorage.delete(questionId);
     
-    const storageResult = await chrome.storage.sync.get(['pending', 'solvedSlugs']);
+    const storageResult = await chrome.storage.local.get(['pending', 'solvedSlugs']);
     const pending = storageResult.pending || [];
     const solvedSlugs = new Set(storageResult.solvedSlugs || []);
     
@@ -243,7 +250,7 @@ async function processAcceptedSubmission(submissionId, tabId, data = null) {
       console.log(`[Leet2Git] Problem already solved in different language, allowing upload but not updating stats: ${tabInfo.slug}`);
     }
     
-    await chrome.storage.sync.set({ 
+    await chrome.storage.local.set({ 
       pending,
       solvedSlugs: Array.from(solvedSlugs)
     });
@@ -264,7 +271,7 @@ async function updateStats(solution) {
       counts: { easy: 0, medium: 0, hard: 0 },
       recentSolves: [],
       lastSolveDate: null
-    }} = await chrome.storage.sync.get('stats');
+    }} = await chrome.storage.local.get('stats');
     
     const difficulty = solution.difficulty.toLowerCase();
     if (stats.counts[difficulty] !== undefined) {
@@ -312,7 +319,7 @@ async function updateStats(solution) {
     
     stats.recentSolves = stats.recentSolves.slice(0, 10);
     
-    await chrome.storage.sync.set({ stats });
+    await chrome.storage.local.set({ stats });
     console.log(`[Leet2Git] Stats updated for ${solution.title}, streak: ${stats.streak}`);
   } catch (error) {
     console.error("Error updating stats:", error);
@@ -349,7 +356,7 @@ async function handleAuthVerification(token, sendResponse, isOAuthToken = false)
       authType: isOAuthToken ? 'oauth' : 'pat' // Track auth type
     };
 
-    await chrome.storage.sync.set({ auth: authData });
+    await chrome.storage.local.set({ auth: authData });
     
     sendResponse({ 
       success: true, 
@@ -367,13 +374,20 @@ async function handleOAuthLogin(sendResponse) {
     const CLIENT_ID = 'Ov23liPVnJxvGsF4Y9qm';
     const redirectUri = chrome.identity.getRedirectURL();
     
+    // Generate CSRF state parameter for security
+    const state = generateRandomString(32);
+    
+    // Store state temporarily for verification
+    await chrome.storage.local.set({ oauth_state: state });
+    
     console.log('OAuth redirect URI:', redirectUri);
     
-    // Build GitHub OAuth authorization URL
+    // Build GitHub OAuth authorization URL with state parameter
     const authUrl = new URL('https://github.com/login/oauth/authorize');
     authUrl.searchParams.set('client_id', CLIENT_ID);
     authUrl.searchParams.set('redirect_uri', redirectUri);
     authUrl.searchParams.set('scope', 'repo user:email');
+    authUrl.searchParams.set('state', state);
     
     // Launch OAuth flow
     chrome.identity.launchWebAuthFlow({
@@ -392,9 +406,20 @@ async function handleOAuthLogin(sendResponse) {
       }
       
       try {
-        // Extract authorization code from redirect URL
+        // Extract authorization code and state from redirect URL
         const url = new URL(redirectUrl);
         const code = url.searchParams.get('code');
+        const returnedState = url.searchParams.get('state');
+        
+        // Verify CSRF state parameter
+        const { oauth_state } = await chrome.storage.local.get('oauth_state');
+        await chrome.storage.local.remove('oauth_state'); // Clean up
+        
+        if (!returnedState || returnedState !== oauth_state) {
+          console.error('OAuth state mismatch - possible CSRF attack');
+          sendResponse({ success: false, error: 'Security verification failed' });
+          return;
+        }
         
         if (!code) {
           sendResponse({ success: false, error: 'No authorization code received' });
@@ -430,7 +455,7 @@ async function handleOAuthLogin(sendResponse) {
           userInfo: tokenData.user
         };
         
-        await chrome.storage.sync.set({ auth: authData });
+        await chrome.storage.local.set({ auth: authData });
         
         sendResponse({ 
           success: true, 
@@ -452,7 +477,7 @@ async function handleOAuthLogin(sendResponse) {
 
 async function handleAuth(sendResponse) {
   try {
-    const data = await chrome.storage.sync.get(['auth']);
+    const data = await chrome.storage.local.get(['auth']);
     sendResponse({ 
       success: true, 
       auth: data.auth || null 
@@ -465,7 +490,7 @@ async function handleAuth(sendResponse) {
 
 async function handleGetHomeData(sendResponse) {
   try {
-    const data = await chrome.storage.sync.get(['stats', 'pending', 'auth', 'config']);
+    const data = await chrome.storage.local.get(['stats', 'pending', 'auth', 'config']);
     
     const homeData = {
       stats: data.stats || {
@@ -495,7 +520,7 @@ async function handleGetHomeData(sendResponse) {
 
 async function handleUpdateConfig(config, sendResponse) {
   try {
-    await chrome.storage.sync.set({ config });
+    await chrome.storage.local.set({ config });
     sendResponse({ success: true });
   } catch (error) {
     console.error("Error updating config:", error);
@@ -505,7 +530,7 @@ async function handleUpdateConfig(config, sendResponse) {
 
 async function handlePush(sendResponse) {
   try {
-    const data = await chrome.storage.sync.get(['pending', 'auth', 'config']);
+    const data = await chrome.storage.local.get(['pending', 'auth', 'config']);
     const pending = data.pending || [];
     
     if (pending.length === 0) {
@@ -545,7 +570,7 @@ async function handlePush(sendResponse) {
       }
     }
     
-    await chrome.storage.sync.set({ pending: [] });
+    await chrome.storage.local.set({ pending: [] });
     await updateBadge();
     
     sendResponse({
