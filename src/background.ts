@@ -320,11 +320,16 @@ async function updateStats(solution) {
 }
 
 // Message handlers
-async function handleAuthVerification(token, sendResponse) {
+async function handleAuthVerification(token, sendResponse, isOAuthToken = false) {
   try {
+    // Use different authorization header format based on token type
+    const authHeader = isOAuthToken 
+      ? `Bearer ${token}` 
+      : `token ${token}`;
+    
     const response = await fetch('https://api.github.com/user', {
       headers: {
-        'Authorization': `token ${token}`,
+        'Authorization': authHeader,
         'Accept': 'application/vnd.github.v3+json'
       }
     });
@@ -340,7 +345,8 @@ async function handleAuthVerification(token, sendResponse) {
       token: token,
       username: userData.login,
       email: userData.email || '',
-      connected: true
+      connected: true,
+      authType: isOAuthToken ? 'oauth' : 'pat' // Track auth type
     };
 
     await chrome.storage.sync.set({ auth: authData });
@@ -353,6 +359,94 @@ async function handleAuthVerification(token, sendResponse) {
   } catch (error) {
     console.error("Error verifying GitHub token:", error);
     sendResponse({ success: false, error: 'Failed to verify token' });
+  }
+}
+
+async function handleOAuthLogin(sendResponse) {
+  try {
+    const CLIENT_ID = 'Ov23liPVnJxvGsF4Y9qm';
+    const redirectUri = chrome.identity.getRedirectURL();
+    
+    console.log('OAuth redirect URI:', redirectUri);
+    
+    // Build GitHub OAuth authorization URL
+    const authUrl = new URL('https://github.com/login/oauth/authorize');
+    authUrl.searchParams.set('client_id', CLIENT_ID);
+    authUrl.searchParams.set('redirect_uri', redirectUri);
+    authUrl.searchParams.set('scope', 'repo user:email');
+    
+    // Launch OAuth flow
+    chrome.identity.launchWebAuthFlow({
+      url: authUrl.toString(),
+      interactive: true
+    }, async (redirectUrl) => {
+      if (chrome.runtime.lastError) {
+        console.error('OAuth flow error:', chrome.runtime.lastError);
+        sendResponse({ success: false, error: chrome.runtime.lastError.message });
+        return;
+      }
+      
+      if (!redirectUrl) {
+        sendResponse({ success: false, error: 'No redirect URL received' });
+        return;
+      }
+      
+      try {
+        // Extract authorization code from redirect URL
+        const url = new URL(redirectUrl);
+        const code = url.searchParams.get('code');
+        
+        if (!code) {
+          sendResponse({ success: false, error: 'No authorization code received' });
+          return;
+        }
+        
+        console.log('Got authorization code, exchanging for token...');
+        
+        // Exchange code for access token via our backend
+        const tokenResponse = await fetch('http://localhost:5000/api/github/oauth/token', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ code })
+        });
+        
+        const tokenData = await tokenResponse.json();
+        
+        if (!tokenResponse.ok || tokenData.error) {
+          console.error('Token exchange error:', tokenData);
+          sendResponse({ success: false, error: tokenData.error || 'Failed to exchange code for token' });
+          return;
+        }
+        
+        // Store the OAuth token using the same auth structure
+        const authData = {
+          token: tokenData.access_token,
+          username: tokenData.user.login,
+          email: tokenData.user.email || '',
+          connected: true,
+          authType: 'oauth',
+          userInfo: tokenData.user
+        };
+        
+        await chrome.storage.sync.set({ auth: authData });
+        
+        sendResponse({ 
+          success: true, 
+          username: tokenData.user.login,
+          auth: authData 
+        });
+        
+      } catch (error) {
+        console.error('OAuth processing error:', error);
+        sendResponse({ success: false, error: error.message });
+      }
+    });
+    
+  } catch (error) {
+    console.error('OAuth login error:', error);
+    sendResponse({ success: false, error: error.message });
   }
 }
 
@@ -435,7 +529,7 @@ async function handlePush(sendResponse) {
       includeTestCases: false
     };
     
-    await ensureRepositoryExists(auth.token, config);
+    await ensureRepositoryExists(auth.token, config, auth.authType);
     
     let successCount = 0;
     const results = [];
@@ -468,13 +562,14 @@ async function handlePush(sendResponse) {
 }
 
 // GitHub utilities
-async function ensureRepositoryExists(token, config) {
+async function ensureRepositoryExists(token, config, authType = 'pat') {
   const repoUrl = `https://api.github.com/repos/${config.owner}/${config.repo}`;
+  const authHeader = authType === 'oauth' ? `Bearer ${token}` : `token ${token}`;
   
   try {
     const response = await fetch(repoUrl, {
       headers: {
-        'Authorization': `token ${token}`,
+        'Authorization': authHeader,
         'Accept': 'application/vnd.github.v3+json'
       }
     });
@@ -490,7 +585,7 @@ async function ensureRepositoryExists(token, config) {
       const createResponse = await fetch('https://api.github.com/user/repos', {
         method: 'POST',
         headers: {
-          'Authorization': `token ${token}`,
+          'Authorization': authHeader,
           'Accept': 'application/vnd.github.v3+json',
           'Content-Type': 'application/json'
         },
@@ -531,7 +626,8 @@ async function pushSolutionToGitHub(solution, auth, config) {
     branch: config.branch || 'main',
     path: `${filePath}/${fileName}`,
     content,
-    message: `Add solution: ${solution.title}`
+    message: `Add solution: ${solution.title}`,
+    authType: auth.authType || 'pat'
   });
 }
 
@@ -595,14 +691,17 @@ function getFileExtension(language) {
   return extensionMap[normalizedLang] || 'py';
 }
 
-async function upsertFile({ token, owner, repo, branch, path, content, message }) {
+async function upsertFile({ token, owner, repo, branch, path, content, message, authType }) {
   const fileUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+  
+  // Use correct authorization header format based on auth type
+  const authHeader = authType === 'oauth' ? `Bearer ${token}` : `token ${token}`;
   
   let sha = null;
   try {
     const getResponse = await fetch(fileUrl, {
       headers: {
-        'Authorization': `token ${token}`,
+        'Authorization': authHeader,
         'Accept': 'application/vnd.github.v3+json'
       }
     });
@@ -628,7 +727,7 @@ async function upsertFile({ token, owner, repo, branch, path, content, message }
   const response = await fetch(fileUrl, {
     method: 'PUT',
     headers: {
-      'Authorization': `token ${token}`,
+      'Authorization': authHeader,
       'Accept': 'application/vnd.github.v3+json',
       'Content-Type': 'application/json'
     },
@@ -657,6 +756,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       } else {
         handleAuth(sendResponse);
       }
+      break;
+    case "oauthLogin":
+      handleOAuthLogin(sendResponse);
       break;
     case "push":
       handlePush(sendResponse);
