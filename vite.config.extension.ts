@@ -30,10 +30,12 @@ const manifest = {
     }
   ],
   permissions: [
+    "identity",
     "storage",
     "webRequest",
     "tabs",
-    "activeTab"
+    "activeTab",
+    "scripting"
   ],
   host_permissions: [
     "https://leetcode.com/*",
